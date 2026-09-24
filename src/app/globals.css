@@ -693,6 +693,45 @@ h1 > span {
   flex-direction: column;
   min-width: 0;
 }
+.navigation-toggle { margin: 1rem 0; width: 100%; }
+.cdrrmo-report-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin: 1.5rem 0; }
+.cdrrmo-report-actions button { display: flex; flex-direction: column; align-items: flex-start; gap: .6rem; padding: 1.2rem; text-align: left; }
+.cdrrmo-report-actions button span { font-size: .85rem; color: var(--muted); }
+.navigation-toggle[hidden], .map-hazard-controls[hidden] { display: none; }
+.map-panel.navigation-view {
+  position: fixed; inset: 0; z-index: 2000; background: var(--surface);
+  display: grid; grid-template-columns: minmax(0, 1fr) 340px;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: 100%; height: 100dvh; border-radius: 0;
+}
+.navigation-heading { grid-column: 1 / -1; display: flex; align-items: center; gap: 1rem; padding: 1rem; background: #143b65; color: white; }
+.navigation-heading > div { flex: 1; min-width: 0; }
+.navigation-heading h2 { font-size: 1.1rem; margin: .2rem 0; }
+.navigation-heading small { font-size: .7rem; letter-spacing: .1em; }
+.navigation-heading p { font-size: .85rem; }
+.navigation-heading button { flex-shrink: 0; color: #143b65; background: white; }
+.navigation-view .map-toolbar { display: none; }
+.navigation-view .map-stage { min-height: 0; height: auto; grid-column: 1; grid-row: 2; }
+.navigation-view .route-summary { grid-column: 2; grid-row: 2; overflow-y: auto; padding: 1rem; }
+.navigation-view .map-footer { grid-column: 1 / -1; }
+.navigation-view .legend-route { background: #1265dd; }
+.navigation-view .route-summary-title { display: none; }
+.navigation-view .route-metrics { margin: 0 0 .6rem; padding: .4rem 0; }
+.navigation-directions { font-size: .85rem; }
+.navigation-directions p { margin: 1rem 0; color: var(--muted); }
+.navigation-directions h4 { margin: 1rem 0 .5rem; }
+.navigation-directions ol, .navigation-directions ul { padding-left: 1.3rem; }
+.navigation-directions li { padding: .45rem 0; }
+.navigation-blocked { color: #b8322b; }
+@media (max-width: 700px) {
+  .map-panel.navigation-view { grid-template-columns: 1fr; grid-template-rows: auto minmax(200px, 1fr) minmax(120px, 32dvh) auto; }
+  .navigation-heading { padding: .65rem; gap: .5rem; }
+  .navigation-heading h2 { font-size: .9rem; }
+  .navigation-heading > svg { display: none; }
+  .navigation-heading button { font-size: .75rem; padding: .5rem; }
+  .navigation-view .route-summary { grid-column: 1; grid-row: 3; }
+  .navigation-view .map-stage { min-height: 0 !important; height: auto !important; }
+}
 .map-toolbar {
   display: flex;
   align-items: center;

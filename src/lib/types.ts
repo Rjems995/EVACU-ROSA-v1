@@ -46,6 +46,7 @@ export type Snapshot = {
   boundaries: Boundary[];
   syncedAt: string;
   demo: boolean;
+  setupRequired?: boolean;
 };
 export type Position = [number, number]; // longitude, latitude (GeoJSON order)
 export type Route = {

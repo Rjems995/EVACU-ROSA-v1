@@ -62,6 +62,22 @@ export default function PublicApp() {
   const [tab, setTab] = useState<'shelters' | 'alerts'>('shelters'),
     [help, setHelp] = useState(false);
   const [clock, setClock] = useState(Date.now());
+  const [navigating, setNavigating] = useState(false);
+  const [overview, setOverview] = useState(0);
+  useEffect(() => {
+    if (!navigating) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setNavigating(false);
+    };
+    document.addEventListener('keydown', escape);
+    return () => {
+      document.body.style.overflow = previous;
+      document.removeEventListener('keydown', escape);
+      document.getElementById('open-navigation')?.focus();
+    };
+  }, [navigating]);
   const locationRequest = useRef(0);
   useEffect(() => {
     try {
@@ -76,13 +92,25 @@ export default function PublicApp() {
       localStorage.setItem('evacu-theme', dark ? 'dark' : 'light');
     } catch {}
   }, [dark]);
+  const inCoverage = useMemo(() => {
+    if (!snapshot || !origin) return false;
+    let west = Infinity, east = -Infinity, south = Infinity, north = -Infinity;
+    for (const road of snapshot.roads) for (const [lng, lat] of road.geometry.coordinates) {
+      west = Math.min(west, lng); east = Math.max(east, lng);
+      south = Math.min(south, lat); north = Math.max(north, lat);
+    }
+    return origin[0] >= west && origin[0] <= east && origin[1] >= south && origin[1] <= north;
+  }, [snapshot, origin]);
   const ranked = useMemo(
-    () => (snapshot && origin ? rankShelters(snapshot, origin, accessible) : []),
-    [snapshot, origin, accessible],
+    () => (snapshot && origin && inCoverage ? rankShelters(snapshot, origin, accessible) : []),
+    [snapshot, origin, accessible, inCoverage],
   );
   const activeRoute = requested
     ? ranked.find((r) => r.shelter.id === selected) || ranked[0]
     : undefined;
+  useEffect(() => {
+    if (!activeRoute) setNavigating(false);
+  }, [activeRoute]);
   const shelterList = useMemo(() => {
     if (!snapshot) return [];
     const list = origin
@@ -108,6 +136,7 @@ export default function PublicApp() {
     setPicking(false);
     setNotice('');
     setRequested(false);
+    setNavigating(false);
     setSelected(null);
   }, []);
   const locate = useCallback(() => {
@@ -150,6 +179,11 @@ export default function PublicApp() {
     if (!origin) {
       setPicking(true);
       setNotice('Select your starting point on the map, or use your current location.');
+      return;
+    }
+    if (!inCoverage) {
+      setNotice('Your starting point is outside the loaded Santa Rosa road coverage. Choose a point inside the mapped area.');
+      setRequested(false);
       return;
     }
     setRequested(true);
@@ -241,7 +275,7 @@ export default function PublicApp() {
               ? 'Saved data'
               : snapshot?.demo
                 ? 'Sample data'
-                : 'Connected'}
+                : snapshot?.setupRequired ? 'Awaiting CDRRMO setup' : 'Connected'}
         </span>
       </div>
       <main id="main" className="app-main">
@@ -265,6 +299,13 @@ export default function PublicApp() {
               incident reports are fictional. Do not use sample routes for evacuation.
             </p>
             <span className="demo-label">SAMPLE DATA</span>
+          </aside>
+        )}
+        {snapshot?.setupRequired && (
+          <aside className="offline-banner" role="status">
+            <Info size={20} />
+            <p>CDRRMO reports and verified shelters are not available yet. Street maps remain available; no evacuation routes can be generated until shelters are published.</p>
+            <Link href="/admin" className="text-button">CDRRMO panel</Link>
           </aside>
         )}
         {(offline || cached || (!snapshot?.demo && age > 15)) && (
@@ -429,7 +470,7 @@ export default function PublicApp() {
                           ? 'Unable to load shelters. Reconnect and try again.'
                           : origin
                             ? 'No matching reachable shelters. Change the starting point or filters.'
-                            : 'No shelters match your search.'}
+                            : snapshot?.setupRequired ? 'Waiting for CDRRMO to publish verified shelters.' : 'No shelters match your search.'}
                       </p>
                     )}
                   </div>
@@ -443,6 +484,7 @@ export default function PublicApp() {
                 >
                   <h3>Reported street hazards</h3>
                   <p>Hidden map layers still affect routing.</p>
+                  {!activeHazards.length && <p>No active street reports have been published. This does not confirm that streets are safe.</p>}
                   {activeHazards.map((h) => {
                     const Icon = hazardIcons[h.hazard_type];
                     const road = snapshot?.roads.find((r) => r.id === h.road_id);
@@ -478,7 +520,14 @@ export default function PublicApp() {
               <span>Risk-aware guidance. Stay aware of your surroundings.</span>
             </footer>
           </aside>
-          <section className="map-panel" aria-label="Map and route information">
+          <section className={`map-panel ${navigating && activeRoute ? 'navigation-view' : ''}`} aria-label="Map and route information">
+            {navigating && activeRoute && (
+              <div className="navigation-heading">
+                <Navigation size={28} aria-hidden="true" />
+                <div><small>{snapshot?.demo ? 'SAMPLE WALKING ROUTE' : 'WALKING ROUTE'}</small><h2>{activeRoute.shelter.name}</h2><p>Santa Rosa · {activeRoute.route.minutes} min · {(activeRoute.route.distance / 1000).toFixed(1)} km</p></div>
+                <button autoFocus className="secondary-button" onClick={() => setNavigating(false)}>Exit navigation</button>
+              </div>
+            )}
             <div className="map-toolbar">
               <div>
                 <span className="live-dot" />
@@ -509,6 +558,8 @@ export default function PublicApp() {
                   visible={visible}
                   boundaries={boundaries}
                   picking={picking}
+                  navigating={navigating}
+                  overview={overview}
                   onPick={(p) => choose(p)}
                   onShelter={selectShelter}
                 />
@@ -523,7 +574,7 @@ export default function PublicApp() {
                   )}
                 </div>
               )}
-              <div className="map-hazard-controls" aria-label="Hazard map layers">
+              <div className="map-hazard-controls" aria-label="Hazard map layers" hidden={navigating}>
                 {(['flood', 'fire', 'earthquake'] as HazardType[]).map((type) => {
                   const Icon = hazardIcons[type];
                   return (
@@ -574,7 +625,7 @@ export default function PublicApp() {
                 </span>
                 <span>
                   <i className="legend-route" />
-                  Lower-risk route
+                  {navigating ? 'Walking route' : 'Lower-risk route'}
                 </span>
                 <span>
                   <i className="legend-hazard" />
@@ -599,7 +650,7 @@ export default function PublicApp() {
                   <button
                     className="icon-button"
                     aria-label="Clear route"
-                    onClick={() => setRequested(false)}
+                    onClick={() => { setRequested(false); setNavigating(false); }}
                   >
                     <X size={19} />
                   </button>
@@ -621,6 +672,24 @@ export default function PublicApp() {
                     <small>From recorded hazards</small>
                   </span>
                 </div>
+                <button id="open-navigation" className="primary-button navigation-toggle" onClick={() => { setPicking(false); setNavigating(true); setOverview((n) => n + 1); }} hidden={navigating}>
+                  <Navigation size={20} /> Open navigation view
+                </button>
+                {navigating && (
+                  <div className="navigation-directions">
+                    <button className="secondary-button" onClick={() => setOverview((n) => n + 1)}>Show entire route</button>
+                    <p>{snapshot?.demo ? 'Sample preview only. ' : ''}Directions from your selected starting point; position is not tracked live.</p>
+                    <h4>Streets to the shelter</h4>
+                    <ol>{activeRoute.route.roadIds.map((id, i) => {
+                      const name = snapshot?.roads.find((road) => road.id === id)?.name || 'Unnamed street';
+                      const previous = snapshot?.roads.find((road) => road.id === activeRoute.route.roadIds[i - 1])?.name;
+                      return name === previous ? null : <li key={id}>{i === 0 ? 'Start on' : 'Continue onto'} {name}</li>;
+                    })}<li>Approach {activeRoute.shelter.name}. Check the shelter entrance locally.</li></ol>
+                    <h4>Blocked street segments — avoided</h4>
+                    <p>Red sections are blocked. Other sections of the same street may remain open.</p>
+                    <ul className="navigation-blocked">{snapshot?.roads.filter((road) => segmentRisk(road, snapshot.hazards).blocked).map((road) => <li key={road.id}><strong>{road.name}</strong> — {snapshot.hazards.filter((h) => h.active && h.road_id === road.id).map((h) => h.hazard_type).join(', ') || 'Road closure'}</li>)}</ul>
+                  </div>
+                )}
                 <details>
                   <summary>Route details and limitations</summary>
                   <p>
@@ -649,7 +718,7 @@ export default function PublicApp() {
                 <Info size={14} />
                 {snapshot?.demo
                   ? 'OSM streets · sample incidents · not for navigation'
-                  : 'Routes use the latest available road and hazard reports'}
+                : snapshot?.setupRequired ? 'Santa Rosa streets · awaiting CDRRMO data' : 'Routes use the latest available road and hazard reports'}
               </span>
               <button className="text-button" onClick={() => void sync()}>
                 <RefreshCw size={14} />
@@ -918,7 +987,7 @@ function HelpDialog({ onClose }: { onClose: () => void }) {
         </p>
       </section>
       <p className="inline-warning">
-        Sample incidents and shelter locations are for evaluation only. Your browser asks permission
+        Your browser asks permission
         before sharing your location with this page; your position is not saved or uploaded
         automatically.
       </p>

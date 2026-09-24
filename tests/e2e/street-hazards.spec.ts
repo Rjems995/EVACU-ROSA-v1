@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, chooseFixtureLocation, fixtureSnapshot } from './fixtures';
 import { DEMO_ORIGIN } from '../../src/lib/constants';
 
 test('requests current location on opening without pressing a location button', async ({
@@ -33,8 +33,8 @@ test('denied automatic location preserves a manual starting-point fallback', asy
       'Location permission was denied or a position could not be found. Choose a point on the map.',
     ),
   ).toBeVisible();
-  await page.getByRole('button', { name: 'Try sample location' }).click();
-  await expect(page.getByRole('button', { name: /Sample starting point/ })).toBeVisible();
+  await chooseFixtureLocation(page);
+  await expect(page.getByRole('button', { name: /Entered location/ })).toBeVisible();
 });
 
 test('a late GPS callback cannot overwrite a manually selected start', async ({ page }) => {
@@ -49,21 +49,20 @@ test('a late GPS callback cannot overwrite a manually selected start', async ({ 
     });
   });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Try sample location' }).click();
+  await chooseFixtureLocation(page);
   await page.evaluate(() => {
     (window as unknown as { finishLocation: (position: unknown) => void }).finishLocation({
       coords: { longitude: 120, latitude: 13 },
     });
   });
-  await expect(page.getByRole('button', { name: /Sample starting point/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Entered location/ })).toBeVisible();
 });
 
 test('hazard reports are street lines and named blocked streets are visible', async ({
   page,
   request,
 }) => {
-  const response = await request.get('/api/snapshot');
-  const data = await response.json();
+  const data = fixtureSnapshot;
   expect(data.schemaVersion).toBe(2);
   expect(
     data.hazards.every(
@@ -86,10 +85,10 @@ test('hazard reports are street lines and named blocked streets are visible', as
 test('CDRRMO preview selects a street instead of entering a polygon', async ({ page }) => {
   await page.goto('/admin');
   await page.getByRole('button', { name: 'Street hazards', exact: true }).click();
-  await page.getByRole('button', { name: 'Preview street reporting' }).click();
+  await page.getByRole('button', { name: 'Prepare street report' }).click();
   await page.getByRole('searchbox', { name: 'Search street name' }).fill('Tatlong Hari Street');
   await page.getByRole('radio').first().check();
   await expect(page.locator('.selected-street')).toContainText('Tatlong Hari Street');
   await expect(page.getByLabel('GeoJSON geometry (longitude, latitude)')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Save changes' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Publish report' })).toBeDisabled();
 });

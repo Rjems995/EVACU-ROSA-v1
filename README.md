@@ -2,7 +2,7 @@
 
 A responsive evacuation-map application for Santa Rosa City, Laguna. Built with Next.js App Router, React, TypeScript, Tailwind CSS, Leaflet, Supabase Auth, PostgreSQL/PostGIS, Mamdani fuzzy inference, A* routing, and IndexedDB.
 
-**The default dataset is a demonstration, not operational evacuation guidance.** The road lines now follow a 5,000-segment OpenStreetMap extract. Shelter locations, capacities, and incident reports are fictional. Official boundaries are not included. See [street data attribution](src/data/README.md).
+**The default public map contains streets only, with no fictional shelters or incidents.** Connect Supabase to enable CDRRMO sign-in and shared reports using [the CDRRMO setup guide](docs/cdrrmo-setup.md). Road lines follow a partial 5,000-segment OpenStreetMap extract. Official boundaries are not included. See [street data attribution](src/data/README.md).
 
 ## Run locally
 
@@ -14,7 +14,7 @@ npm.cmd install
 npm.cmd run dev
 ```
 
-Open <http://localhost:3000>. The app requests your location automatically; allow the browser prompt to use it. If permission is denied or you are outside the sample network, use **Try sample location**, then **Find Shelter Now**. The admin preview is at `/admin`, including **Street hazards → Preview street reporting**. The app works in demo mode without credentials.
+Open <http://localhost:3000>. The app requests your location automatically; allow the browser prompt to use it, or choose a point on the map. The CDRRMO panel is at `/admin`, with **Report flooding**, **Report fire**, and **Report earthquake damage**. Without credentials, reports can be prepared but publishing is disabled. No routes are offered until verified shelters are published.
 
 The helper changes PATH only in the current PowerShell session. For another terminal, dot-source it again. Alternatively install Node.js system-wide and use normal `npm` commands.
 
@@ -34,7 +34,7 @@ npm.cmd start
 ## Connect Supabase
 
 1. Create a Supabase project. Run `001_initial.sql`, then `002_street_hazards.sql` from `supabase/migrations/` in its SQL editor. Existing installs need migration 002. It creates CDRRMO-only street reports and preserves old polygon reports as an administrator-only archive.
-2. For a **fresh disposable demonstration database only**, run `supabase/seed.sql`. It loads OSM street geometry and fictional incidents/shelters. Do not run this seed over a live database.
+2. For a fresh operational database run `supabase/roads-only.sql`. It imports streets only and enables an empty operational dataset. Existing demonstration records cause this script to stop for review. `supabase/seed.sql` is only for disposable development databases, not deployment.
 3. Copy `.env.example` to `.env.local`. Fill in your project URL and public anon key. Never put the service-role key in a `NEXT_PUBLIC_` variable. Restart/rebuild Next.js after changing these values.
 4. Create an administrator in Supabase **Authentication → Users**. Assign its UUID using the SQL editor:
 
@@ -81,7 +81,7 @@ Street reports accept `{road_id, hazard_type, severity, blocked, active, notes}`
 
 See [docs/algorithms.md](docs/algorithms.md) for membership functions, rule base, centroid defuzzification, A* costs, shelter ranking, snapping thresholds, and ETA assumptions.
 
-The sample is a functional prototype, not a validated emergency system. Supabase migrations and RLS integration require a connected instance to execute. Real Android/iOS devices and local responder workflows require field acceptance. Step-free shelter filtering does not guarantee a wheelchair-accessible route. Hazard proximity is an approximate penalty, not a physical hazard model.
+Supabase migrations and RLS integration require a connected instance to execute. Real Android/iOS devices and local responder workflows require field acceptance. Step-free shelter filtering does not guarantee a wheelchair-accessible route. Hazard proximity is an approximate penalty, not a physical hazard model.
 
 ## Replacing the synthetic data
 

@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Check, LogOut, Plus, ShieldCheck, Trash2 } from 'lucide-react';
+import { ArrowLeft, Check, LogOut, Plus, ShieldCheck, Trash2, Waves, Flame, Mountain } from 'lucide-react';
 import { configured, supabase } from '@/lib/supabase';
 import RoadPicker from '@/components/road-picker';
 import type { Road, Snapshot } from '@/lib/types';
@@ -87,7 +87,7 @@ export default function AdminPage() {
     [barangay, setBarangay] = useState('');
   const [email, setEmail] = useState(''),
     [password, setPassword] = useState('');
-  const [resource, setResource] = useState<Resource>('evacuation_centers'),
+  const [resource, setResource] = useState<Resource>('road_hazards'),
     [records, setRecords] = useState<RecordData[]>([]);
   const [draft, setDraft] = useState<RecordData | null>(null),
     [editId, setEditId] = useState<string | null>(null);
@@ -96,6 +96,8 @@ export default function AdminPage() {
     [checking, setChecking] = useState(Boolean(db));
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [roads, setRoads] = useState<Road[]>([]);
+  const [reportFilter, setReportFilter] = useState('active');
+  const [reportSearch, setReportSearch] = useState('');
   useEffect(() => {
     if (!db) return;
     const apply = async (accessToken: string, userId: string) => {
@@ -135,7 +137,7 @@ export default function AdminPage() {
   const load = useCallback(async () => {
     if (!db) {
       const response = await fetch('/api/snapshot');
-      if (!response.ok) { setMessage('Sample street data could not be loaded.'); return; }
+      if (!response.ok) { setMessage('Street data could not be loaded.'); return; }
       const s: Snapshot = await response.json();
       setRoads(s.roads);
       setRecords(
@@ -191,12 +193,13 @@ export default function AdminPage() {
       setBusy(false);
     }
   }
-  function edit(record?: RecordData) {
+  function edit(record?: RecordData, changes: RecordData = {}) {
     if (resource === 'incident_logs') return;
     const initial: RecordData = {
       ...defaults[resource],
       ...(record || {}),
       ...(role === 'barangay' ? { barangay } : {}),
+      ...changes,
     };
     const clean: RecordData = {};
     for (const key of Object.keys(defaults[resource]))
@@ -275,6 +278,10 @@ export default function AdminPage() {
   const tabs = (Object.keys(labels) as Resource[]).filter(
     (r) => r !== 'admin_accounts' || role === 'citywide',
   );
+  const displayed = resource === 'road_hazards' ? records.filter((record) =>
+    (reportFilter === 'all' || Boolean(record.active) === (reportFilter === 'active')) &&
+    `${roads.find(road => road.id === record.road_id)?.name || record.name || ''} ${record.hazard_type} ${record.notes || ''}`.toLowerCase().includes(reportSearch.toLowerCase())
+  ) : records;
   return (
     <>
       <header className="topbar">
@@ -298,7 +305,7 @@ export default function AdminPage() {
         ) : db && !token ? (
           <form onSubmit={signIn} className="admin-login">
             <ShieldCheck size={32} />
-            <h1 className="mt-3">Administrator sign-in</h1>
+            <h1 className="mt-3">CDRRMO sign-in</h1>
             <p>Manage local shelter capacity, hazard reports, and road conditions.</p>
             <label className="field">
               Email
@@ -339,13 +346,13 @@ export default function AdminPage() {
             <section className="admin-header">
               <div>
                 <p className="eyebrow">LOCAL RESPONSE OPERATIONS</p>
-                <h1>Manage evacuation information</h1>
+                <h1>CDRRMO operations panel</h1>
                 <p>
                   {db
                     ? role === 'citywide'
                       ? 'Citywide / CDRRMO access'
                       : `Barangay access · ${barangay}`
-                    : 'Preview the administration workspace'}
+                    : 'Santa Rosa street reporting'}
                 </p>
               </div>
               {token && (
@@ -359,11 +366,10 @@ export default function AdminPage() {
               )}
             </section>
             {!db && (
-              <aside className="demo-banner">
+              <aside className="offline-banner">
                 <ShieldCheck size={20} />
                 <p>
-                  <strong>Read-only demonstration.</strong> Add Supabase credentials and apply the
-                  migrations to sign in and manage records.
+                  <strong>Database connection required.</strong> You can select a street and prepare a report here. Publishing and administrator sign-in become available after Supabase is connected. Unsaved reports are not stored.
                 </p>
               </aside>
             )}
@@ -393,8 +399,19 @@ export default function AdminPage() {
                   {resource === 'road_hazards' ? 'Report street hazard' : 'Add record'}
                 </button>
               )}
-              {!db && resource === 'road_hazards' && <button className="secondary-button" onClick={() => edit()}>Preview street reporting</button>}
+              {!db && resource === 'road_hazards' && <button className="secondary-button" onClick={() => edit()}>Prepare street report</button>}
             </div>
+            {resource === 'road_hazards' && <>
+              <div className="cdrrmo-report-actions" aria-label="Report a street hazard">
+                {([{type: 'flood', label: 'Report flooding', Icon: Waves}, {type: 'fire', label: 'Report fire', Icon: Flame}, {type: 'earthquake', label: 'Report earthquake damage', Icon: Mountain}] as const).map(({type, label, Icon}) =>
+                  <button key={type} className="secondary-button" disabled={busy || Boolean(db && role !== 'citywide')} onClick={() => edit(undefined, {hazard_type: type})}><Icon size={24} /><strong>{label}</strong><span>Select the affected street</span></button>
+                )}
+              </div>
+              <div className="admin-form-grid">
+                <label className="field">Search reports<input type="search" placeholder="Street, hazard, or report details" value={reportSearch} onChange={event => setReportSearch(event.target.value)} /></label>
+                <label className="field">Report status<select value={reportFilter} onChange={event => setReportFilter(event.target.value)}><option value="active">Active reports</option><option value="cleared">Cleared reports</option><option value="all">All reports</option></select></label>
+              </div>
+            </>}
             {resource === 'road_hazards' && <p className="my-3">CDRRMO selects the affected street segment and marks it blocked or affected. Clearing a report removes that hazard from routing; other active reports still apply.</p>}
             {message && (
               <p role="status" className="inline-warning">
@@ -424,8 +441,7 @@ export default function AdminPage() {
             {draft && (
               <form id="record-editor" onSubmit={save} className="admin-editor">
                 <h2 className="text-xl font-bold">
-                  {editId ? 'Edit' : 'Add'}{' '}
-                  {resource === 'admin_accounts' ? 'administrator' : 'record'}
+                  {resource === 'road_hazards' ? `${editId ? 'Update' : 'New'} ${draft.hazard_type} report` : `${editId ? 'Edit' : 'Add'} ${resource === 'admin_accounts' ? 'administrator' : 'record'}`}
                 </h2>
                 {resource === 'admin_accounts' && (
                   <p className="inline-warning">
@@ -495,14 +511,14 @@ export default function AdminPage() {
                 </div>
                 <div className="admin-actions">
                   <button className="primary-button" disabled={busy || !token}>
-                    Save changes
+                    {resource === 'road_hazards' ? draft.active ? editId ? 'Update report' : 'Publish report' : 'Save cleared report' : 'Save changes'}
                     <Check size={17} />
                   </button>
                   <button type="button" className="secondary-button" onClick={() => setDraft(null)}>
                     Cancel
                   </button>
                 </div>
-                {!token && <p className="inline-warning">Preview only. Connect Supabase and sign in with CDRRMO / citywide access to publish this report.</p>}
+                {!token && <p className="inline-warning">Connect the database and sign in with CDRRMO / citywide access to publish this report for all users.</p>}
               </form>
             )}
             {busy && !records.length ? (
@@ -512,7 +528,7 @@ export default function AdminPage() {
                 className="admin-grid mt-5 lg:gap-5 xl:gap-6"
                 aria-label={`${labels[resource]} records`}
               >
-                {records.slice(0, 100).map((r, i) => (
+                {displayed.slice(0, 100).map((r, i) => (
                   <article className="admin-record" key={String(r.id || r.user_id || i)}>
                     <h3>{String(r.name || (resource === 'road_hazards' ? roads.find(road => road.id === r.road_id)?.name || 'Street segment' : r.user_id || `${r.action} · ${r.resource}`))}</h3>
                     <p>
@@ -557,6 +573,7 @@ export default function AdminPage() {
                           <button className="secondary-button" onClick={() => edit(r)}>
                             Edit record
                           </button>
+                          {resource === 'road_hazards' && Boolean(r.active) && <button className="secondary-button" onClick={() => edit(r, {active: false})}>Mark as cleared</button>}
                           <button
                             className="secondary-button danger-button flex items-center gap-2"
                             onClick={() =>
@@ -575,8 +592,9 @@ export default function AdminPage() {
                 ))}
               </section>
             )}
-            {!busy && !records.length && (
-              <p className="empty-state">No records available for this account.</p>
+            {displayed.length > 100 && <p>Showing the first 100 matches. Refine your search to find a report.</p>}
+            {!busy && !displayed.length && (
+              <p className="empty-state">{resource === 'road_hazards' ? 'No matching reports. Select a hazard above to report an affected street.' : 'No records available for this account.'}</p>
             )}
           </>
         )}

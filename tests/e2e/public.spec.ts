@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, chooseFixtureLocation, fixtureSnapshot } from './fixtures';
 import { createServer, request as httpRequest } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
@@ -31,11 +31,11 @@ async function outageProxy() {
 }
 test('public route flow, filters, theme and responsive layout', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByText('Demonstration only.', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Try sample location' }).click();
+  await expect(page.getByText('Demonstration only.', { exact: true })).toHaveCount(0);
+  await chooseFixtureLocation(page);
   await page.getByRole('button', { name: 'Find Shelter Now' }).filter({ visible: true }).click();
   await expect(page.getByRole('region', { name: 'Selected route' })).toBeVisible();
-  await expect(page.getByText('SAMPLE ROUTE', { exact: true })).toBeVisible();
+  await expect(page.getByText('SUGGESTED ROUTE', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Use dark theme' }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await page.getByRole('tab', { name: /Hazards/ }).click();
@@ -51,7 +51,7 @@ test('cached snapshot survives offline reload', async ({ page, context, browserN
   const proxy = browserName === 'webkit' ? await outageProxy() : null;
   try {
     await page.goto(proxy ? proxy.url : '/');
-    await expect(page.getByRole('button', { name: 'Try sample location' })).toBeVisible();
+    await expect(page.locator('.leaflet-container')).toBeVisible();
     await page.evaluate(async () => {
       await navigator.serviceWorker.ready;
       await new Promise<void>((resolve) => {
@@ -83,19 +83,19 @@ test('cached snapshot survives offline reload', async ({ page, context, browserN
     await expect(
       page.getByText(proxy ? 'Live updates unavailable.' : 'You’re offline.', { exact: true }),
     ).toBeVisible();
-    await page.getByRole('button', { name: 'Try sample location' }).click();
+    await chooseFixtureLocation(page);
     await page.getByRole('button', { name: 'Find Shelter Now' }).filter({ visible: true }).click();
     await expect(page.getByRole('region', { name: 'Selected route' })).toBeVisible();
   } finally {
     await proxy?.stop();
   }
 });
-test('admin demo is read only and unauthenticated writes are rejected', async ({
+test('unconfigured admin cannot publish and unauthenticated writes are rejected', async ({
   page,
   request,
 }) => {
   await page.goto('/admin');
-  await expect(page.getByText('Read-only demonstration.', { exact: true })).toBeVisible();
+  await expect(page.getByText('Database connection required.', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Add record' })).toHaveCount(0);
   const response = await request.post('/api/admin/evacuation_centers', { data: {} });
   expect([401, 503]).toContain(response.status());

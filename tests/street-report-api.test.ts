@@ -16,6 +16,10 @@ vi.mock('@/lib/supabase', () => ({
             state.payload = payload;
             return { select: async () => ({ data: [{ id: 'saved' }], error: null }) };
           },
+          update: (payload: unknown) => {
+            state.payload = payload;
+            return { eq: () => ({ select: async () => ({ data: [{ id: 'saved' }], error: null }) }) };
+          },
         };
       return {
         select() {
@@ -41,7 +45,7 @@ vi.mock('@/lib/supabase', () => ({
     },
   }),
 }));
-import { POST } from '../src/app/api/admin/[resource]/route';
+import { POST, PATCH } from '../src/app/api/admin/[resource]/route';
 const report = {
   road_id: '44444444-4444-4444-8444-444444444444',
   hazard_type: 'flood',
@@ -78,6 +82,14 @@ it('rejects barangay publication even for a road in its own area', async () => {
 it('lets CDRRMO publish a report referencing a known road', async () => {
   expect((await send(report)).status).toBe(201);
   expect(state.payload).toEqual(report);
+});
+it('lets CDRRMO clear an existing incident without deleting its history', async () => {
+  const response = await PATCH(new Request('http://localhost/api/admin/road_hazards?id=44444444-4444-4444-8444-444444444444', {
+    method: 'PATCH', headers: {'Content-Type':'application/json', Authorization:'Bearer test-token'},
+    body: JSON.stringify({...report, active:false}),
+  }), {params:Promise.resolve({resource:'road_hazards'})});
+  expect(response.status).toBe(200);
+  expect(state.payload).toEqual({...report, active:false});
 });
 it('rejects missing road records and forged polygons', async () => {
   state.roadExists = false;
