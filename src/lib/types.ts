@@ -1,0 +1,57 @@
+import type { LineString, Point, Polygon } from 'geojson';
+export type HazardType = 'flood' | 'fire' | 'earthquake';
+export type Shelter = {
+  id: string;
+  name: string;
+  barangay: string;
+  capacity: number;
+  occupancy: number;
+  status: 'open' | 'closed';
+  accessible: boolean;
+  amenities: string[];
+  geometry: Point;
+};
+export type Road = {
+  id: string;
+  name: string;
+  barangay: string;
+  source: string;
+  target: string;
+  base_cost: number;
+  condition: number;
+  blocked: boolean;
+  oneway: boolean;
+  geometry: LineString;
+};
+export type Hazard = {
+  id: string;
+  name: string;
+  barangay: string;
+  hazard_type: HazardType;
+  severity: number;
+  active: boolean;
+  updated_at: string;
+  geometry: Polygon;
+};
+export type Boundary = { id: string; name: string; kind: 'city' | 'barangay'; geometry: Polygon };
+export type Snapshot = {
+  shelters: Shelter[];
+  roads: Road[];
+  hazards: Hazard[];
+  boundaries: Boundary[];
+  syncedAt: string;
+  demo: boolean;
+};
+export type Position = [number, number]; // longitude, latitude (GeoJSON order)
+export type Route = {
+  coordinates: Position[];
+  roadIds: string[];
+  distance: number;
+  cost: number;
+  risk: number;
+  minutes: number;
+  start: Position;
+  end: Position;
+  snapDistance: number;
+};
+export type RankedShelter = { shelter: Shelter; route: Route; score: number; proximity: number };
