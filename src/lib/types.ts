@@ -22,6 +22,7 @@ export type Road = {
   blocked: boolean;
   oneway: boolean;
   geometry: LineString;
+  osm_way_id?: string;
 };
 export type Hazard = {
   id: string;
@@ -31,10 +32,14 @@ export type Hazard = {
   severity: number;
   active: boolean;
   updated_at: string;
-  geometry: Polygon;
+  road_id: string;
+  blocked: boolean;
+  notes: string;
+  geometry: LineString; // Derived from the linked road, never hand-drawn.
 };
 export type Boundary = { id: string; name: string; kind: 'city' | 'barangay'; geometry: Polygon };
 export type Snapshot = {
+  schemaVersion: 2;
   shelters: Shelter[];
   roads: Road[];
   hazards: Hazard[];

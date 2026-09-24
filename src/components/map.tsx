@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { HazardType, Position, Route, Snapshot } from '@/lib/types';
-import { shelterStatus } from '@/lib/routing';
+import { segmentRisk, shelterStatus } from '@/lib/routing';
 type Props = {
   snapshot: Snapshot;
   origin: Position | null;
@@ -14,6 +14,7 @@ type Props = {
   onPick: (p: Position) => void;
   onShelter: (id: string) => void;
 };
+const shelterHouse = '<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-8H9v8H4a1 1 0 0 1-1-1Z"/></svg>';
 const icon = (content: string, style: string) =>
   L.divIcon({
     className: '',
@@ -67,36 +68,62 @@ export default function EvacuationMap(props: Props) {
           .bindTooltip(b.name)
           .addTo(group),
       );
-    if (snapshot.demo)
-      snapshot.roads.forEach((r) =>
-        L.geoJSON(r.geometry, {
-          style: { color: '#718c83', weight: 2, opacity: 0.32, dashArray: '3 5' },
-        }).addTo(group),
-      );
-    snapshot.hazards
-      .filter((h) => h.active && visible.includes(h.hazard_type))
-      .forEach((h) => {
-        const color = h.severity >= 0.85 ? '#c24132' : '#a16207';
-        const label = document.createElement('span');
-        label.textContent = `${h.name} · ${h.hazard_type} · ${Math.round(h.severity * 100)}% severity`;
-        L.geoJSON(h.geometry, {
-          style: {
-            color,
-            weight: 2,
-            fillColor: color,
-            fillOpacity: 0.2,
-            dashArray: h.hazard_type === 'earthquake' ? '5 5' : undefined,
-          },
-        })
-          .bindPopup(label)
-          .addTo(group);
+    // Draw the same road IDs that routing evaluates. No hazard-area polygons.
+    snapshot.roads.forEach((road) => {
+      const reports = snapshot.hazards.filter((h) => h.active && h.road_id === road.id);
+      if (
+        !road.blocked &&
+        road.condition < 0.95 &&
+        !reports.some((h) => visible.includes(h.hazard_type))
+      )
+        return;
+      const blocked = segmentRisk(road, snapshot.hazards).blocked;
+      const color = blocked ? '#b8322b' : '#a16207';
+      const label = document.createElement('span');
+      label.textContent = `${road.name} — ${blocked ? 'Blocked' : 'Affected'}${reports.length ? ' · ' + reports.map((h) => h.hazard_type).join(', ') : ''}`;
+      const popup = document.createElement('section');
+      const title = document.createElement('strong');
+      title.textContent = label.textContent;
+      popup.append(title);
+      for (const report of reports) {
+        const detail = document.createElement('p');
+        detail.textContent = `${report.hazard_type} · ${Math.round(report.severity * 100)}% severity. ${report.notes}`;
+        popup.append(detail);
+      }
+      const segment = L.geoJSON(road.geometry, {
+        style: {
+          color,
+          weight: 8,
+          opacity: 0.95,
+          lineCap: 'round',
+          dashArray: blocked ? undefined : '8 6',
+          className: `hazard-street ${blocked ? 'blocked-street' : 'affected-street'}`,
+        },
+      })
+        .bindTooltip(label, { permanent: true, direction: 'top', className: 'street-label' })
+        .bindPopup(popup)
+        .addTo(group);
+      segment.eachLayer((item) => {
+        const element = (item as L.Path).getElement();
+        if (!element) return;
+        element.setAttribute('tabindex', '0');
+        element.setAttribute('role', 'button');
+        element.setAttribute('aria-label', label.textContent || road.name);
+        element.addEventListener('keydown', (event) => {
+          const key = (event as KeyboardEvent).key;
+          if (key === 'Enter' || key === ' ') {
+            event.preventDefault();
+            item.openPopup();
+          }
+        });
       });
-    snapshot.shelters.forEach((s, i) => {
+    });
+    snapshot.shelters.forEach((s) => {
       const status = shelterStatus(s),
         [lng, lat] = s.geometry.coordinates;
       const marker = L.marker([lat, lng], {
         icon: icon(
-          String(i + 1),
+          shelterHouse,
           status === 'Full' || status === 'Closed' ? 'pin-full' : 'pin-shelter',
         ),
         title: `${s.name}, ${status}`,
@@ -121,6 +148,10 @@ export default function EvacuationMap(props: Props) {
         title: 'Your selected starting point',
       }).addTo(group);
   }, [props.snapshot, props.origin, props.route, props.visible, props.boundaries]);
+  useEffect(() => {
+    if (props.origin && !props.route)
+      map.current?.setView([props.origin[1], props.origin[0]], 15, { animate: false });
+  }, [props.origin]);
   return (
     <div
       ref={element}

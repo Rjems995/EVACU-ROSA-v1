@@ -5,12 +5,15 @@ Executed locally on Windows on 2026-09-24 with Node.js **22.23.3**, npm **10.9.9
 | Check | Result |
 | --- | --- |
 | Production Next.js build and TypeScript compilation | Passed |
-| Fuzzy inference, routing, ranking, and input-validation unit tests | 17 passed |
-| Browser suite, including installed Microsoft Edge | 19 passed; 5 deliberately skipped duplicate axe audits |
+| Fuzzy inference, street-ID routing, ranking, input validation, and mocked API authorization unit tests | 23 passed |
+| Browser suite, including installed Microsoft Edge | 49 passed; 5 deliberately skipped duplicate axe audits |
 | Public route selection, hazard tabs, theme toggle, horizontal overflow | Passed in Chromium, Edge, Firefox, WebKit, Pixel 7 emulation, iPhone 13 emulation |
 | Offline page reload, IndexedDB recovery, local route computation | Passed in Chromium, Edge, Firefox, Pixel 7 emulation |
 | Actual-origin outage reload and cached local routing | Passed in WebKit and iPhone 13 emulation |
 | Read-only admin demo and rejection of unauthenticated writes | Passed across all six browser configurations |
+| Automatic location, denied permission fallback, and late-GPS/manual-selection race | Passed across all six browser configurations |
+| Street-only hazard lines, blocked street names, and layer filtering | Passed across all six browser configurations |
+| CDRRMO street search/segment selection preview with no polygon entry | Passed across all six browser configurations |
 | Axe WCAG A/AA/2.1 AA semantic/contrast checks | No violations in the tested public light/dark states and admin demo, Chromium |
 | npm dependency audit after updates | 0 reported vulnerabilities |
 
@@ -20,8 +23,8 @@ The public shell and initial scripts/styles are cached during service-worker ins
 
 ## External checks still required
 
-- Apply the PostGIS migration/seed against a real Supabase instance and run `supabase/tests/rls.sql`. No project credentials were available during this build, so database execution, real administrator sign-in, authenticated CRUD, and role enforcement were **not integration-tested**. The SQL test script covers anonymous access, own/cross-barangay changes, self-escalation, regular authenticated users, citywide writes, and audit permissions.
-- Verify actual official boundaries, shelters, road topology, access restrictions, incident reporting, and capacity freshness. The included roads and polygons are synthetic.
+- Apply migrations 001 and 002 against a real Supabase instance and run `supabase/tests/rls.sql` and `supabase/tests/street-hazards.sql`. No project credentials were available, so database execution, real sign-in, and authenticated CRUD were **not integration-tested**. Mocked API tests verify rejection of unauthenticated/barangay publication, acceptance of CDRRMO requests, missing-road rejection, and rejection of client-authored geometry. SQL tests additionally cover database RLS, provenance, duplicate reports, and clearance auditing.
+- Verify official boundaries, shelters, road topology, access restrictions, incident reporting, and capacity freshness. The road geometry now comes from OSM; incidents and shelters remain fictional and no official boundaries are included.
 - Test on physical Android phones/tablets, iPhones/iPads, and the target desktop Chrome/Edge/Firefox versions. Browser-engine emulation is useful evidence, not physical-device certification.
 - Perform manual screen-reader/keyboard testing, enlarged text, touch/pinch gestures, poor GPS reception, low-memory/storage conditions, long outages, and update recovery after a deployment. Automated axe checks do not prove full WCAG compliance.
 - Calibrate risk rules, block thresholds, route costs and ETA assumptions with responsible disaster-response staff; assess graph size and API load before rollout.

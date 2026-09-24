@@ -1,6 +1,3 @@
-import booleanIntersects from '@turf/boolean-intersects';
-import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
-import { lineString, point, polygon } from '@turf/helpers';
 import { fuzzyRisk } from './fuzzy';
 import type { Hazard, Position, RankedShelter, Road, Route, Shelter, Snapshot } from './types';
 export function distance(a: Position, b: Position): number {
@@ -12,11 +9,7 @@ export function distance(a: Position, b: Position): number {
   return 6371000 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(Math.max(0, 1 - h)));
 }
 export function segmentRisk(road: Road, hazards: Hazard[]) {
-  const intersecting = hazards.filter(
-    (h) =>
-      h.active &&
-      booleanIntersects(lineString(road.geometry.coordinates), polygon(h.geometry.coordinates)),
-  );
+  const intersecting = hazards.filter((h) => h.active && h.road_id === road.id);
   const max = (type?: string) =>
     Math.max(
       0,
@@ -30,7 +23,12 @@ export function segmentRisk(road: Road, hazards: Hazard[]) {
   });
   return {
     ...risk,
-    blocked: road.blocked || road.condition >= 0.95 || max() >= 0.85 || risk.score >= 80,
+    blocked:
+      road.blocked ||
+      intersecting.some((h) => h.blocked) ||
+      road.condition >= 0.95 ||
+      max() >= 0.85 ||
+      risk.score >= 80,
   };
 }
 type Edge = {
@@ -67,8 +65,9 @@ export function findRoute(
   hazards: Hazard[],
   origin: Position,
   destination: Position,
+  graph = buildGraph(roads, hazards),
 ): Route | null {
-  const { nodes, edges } = buildGraph(roads, hazards);
+  const { nodes, edges } = graph;
   const nearest = (pos: Position) =>
     [...nodes.entries()].sort((a, b) => distance(pos, a[1]) - distance(pos, b[1]))[0];
   const start = nearest(origin),
@@ -143,6 +142,7 @@ export function rankShelters(
   accessibleOnly = false,
 ): RankedShelter[] {
   const ranked: RankedShelter[] = [];
+  const graph = buildGraph(snapshot.roads, snapshot.hazards);
   for (const shelter of snapshot.shelters) {
     if (
       ['Full', 'Closed'].includes(shelterStatus(shelter)) ||
@@ -150,23 +150,19 @@ export function rankShelters(
     )
       continue;
     const location = shelter.geometry.coordinates as Position;
-    const inside = snapshot.hazards.filter(
-      (h) => h.active && booleanPointInPolygon(point(location), polygon(h.geometry.coordinates)),
-    );
-    if (inside.some((h) => h.severity >= 0.7)) continue;
+    // Nearby street incidents influence ranking, but are not invented shelter-area closures.
     const proximity = Math.max(
       0,
       ...snapshot.hazards
         .filter((h) => h.active)
         .map((h) => {
-          if (inside.includes(h)) return h.severity;
           const nearest = Math.min(
-            ...h.geometry.coordinates[0].map((p) => distance(location, p as Position)),
+            ...h.geometry.coordinates.map((p) => distance(location, p as Position)),
           );
           return h.severity * Math.max(0, 1 - nearest / 1000);
         }),
     );
-    const route = findRoute(snapshot.roads, snapshot.hazards, origin, location);
+    const route = findRoute(snapshot.roads, snapshot.hazards, origin, location, graph);
     if (route)
       ranked.push({
         shelter,

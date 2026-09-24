@@ -5,16 +5,6 @@ const line = z.object({
   type: z.literal('LineString'),
   coordinates: z.array(coordinate).min(2).max(10000),
 });
-const polygon = z
-  .object({
-    type: z.literal('Polygon'),
-    coordinates: z.array(z.array(coordinate).min(4).max(10000)).min(1),
-  })
-  .refine(
-    (p) =>
-      p.coordinates.every((r) => r[0][0] === r[r.length - 1][0] && r[0][1] === r[r.length - 1][1]),
-    'Polygon rings must be closed.',
-  );
 const common = {
   name: z.string().trim().min(2).max(150),
   barangay: z.string().trim().min(2).max(80),
@@ -41,13 +31,16 @@ export const schemas = {
     oneway: z.boolean(),
     geometry: line,
   }),
-  hazard_zones: z.object({
-    ...common,
-    hazard_type: z.enum(['flood', 'fire', 'earthquake']),
-    severity: z.number().min(0).max(1),
-    active: z.boolean(),
-    geometry: polygon,
-  }),
+  road_hazards: z
+    .object({
+      road_id: z.uuid(),
+      hazard_type: z.enum(['flood', 'fire', 'earthquake']),
+      severity: z.number().min(0).max(1),
+      blocked: z.boolean(),
+      active: z.boolean(),
+      notes: z.string().trim().max(1000),
+    })
+    .strict(),
   admin_accounts: z
     .object({
       user_id: z.uuid(),

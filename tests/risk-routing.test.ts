@@ -69,7 +69,7 @@ describe('risk-weighted A*', () => {
   it('handles being at the destination', () => {
     expect(findRoute([edge('a', 'b')], [], positions.a, positions.a)?.distance).toBe(0);
   });
-  it('rejects roads crossing severe polygons even if endpoints are outside', () => {
+  it('affects only the reported road ID, not adjacent streets or shared junctions', () => {
     const h: Hazard = {
       id: 'h',
       name: 'fire',
@@ -78,21 +78,47 @@ describe('risk-weighted A*', () => {
       severity: 0.9,
       active: true,
       updated_at: '2026-01-01',
-      geometry: {
-        type: 'Polygon',
-        coordinates: [
-          [
-            [121.0004, 13.9999],
-            [121.0006, 13.9999],
-            [121.0006, 14.0001],
-            [121.0004, 14.0001],
-            [121.0004, 13.9999],
-          ],
-        ],
-      },
+      road_id: 'ab',
+      blocked: true,
+      notes: 'CDRRMO street report',
+      geometry: edge('a', 'b').geometry,
     };
     expect(segmentRisk(edge('a', 'b'), [h]).blocked).toBe(true);
     expect(segmentRisk(edge('a', 'b'), [{ ...h, active: false }]).blocked).toBe(false);
+    expect(segmentRisk(edge('a', 'c'), [h]).blocked).toBe(false);
+    expect(
+      segmentRisk(edge('a', 'b', { id: 'another-street-with-same-geometry' }), [h]).blocked,
+    ).toBe(false);
+  });
+  it('honors low-severity explicit closures and keeps other active hazards after a report is cleared', () => {
+    const road = edge('a', 'b');
+    const flood: Hazard = {
+      id: 'flood',
+      road_id: road.id,
+      name: 'Test',
+      barangay: 'Test',
+      hazard_type: 'flood',
+      severity: 0.1,
+      blocked: true,
+      active: true,
+      notes: 'Closed by CDRRMO',
+      updated_at: '2026-01-01',
+      geometry: road.geometry,
+    };
+    const fire: Hazard = { ...flood, id: 'fire', hazard_type: 'fire' };
+    expect(findRoute([road], [flood], positions.a, positions.b)).toBeNull();
+    expect(segmentRisk(road, [{ ...flood, active: false }, fire]).blocked).toBe(true);
+    expect(
+      findRoute(
+        [road],
+        [
+          { ...flood, active: false },
+          { ...fire, active: false },
+        ],
+        positions.a,
+        positions.b,
+      )?.roadIds,
+    ).toEqual(['ab']);
   });
   it('takes a longer low-risk path when its weighted cost is lower', () => {
     const roads = [
@@ -105,13 +131,15 @@ describe('risk-weighted A*', () => {
   });
 });
 describe('shelter ranking', () => {
-  it('excludes full shelters and shelters inside severe hazards', () => {
+  it('excludes full shelters and routes around reported street closures', () => {
     const s = demoSnapshot();
     const ranked = rankShelters(s, DEMO_ORIGIN);
     expect(ranked.length).toBeGreaterThan(0);
-    expect(ranked.some((r) => r.shelter.id === 'shelter-5' || r.shelter.id === 'shelter-6')).toBe(
-      false,
+    expect(ranked.every((r) => r.shelter.occupancy < r.shelter.capacity)).toBe(true);
+    const blocked = new Set(
+      s.roads.filter((road) => segmentRisk(road, s.hazards).blocked).map((road) => road.id),
     );
+    expect(ranked.every((r) => r.route.roadIds.every((id) => !blocked.has(id)))).toBe(true);
     expect(ranked[0].score).toBeLessThanOrEqual(ranked.at(-1)!.score);
   });
   it('filters for reported step-free entrances', () => {

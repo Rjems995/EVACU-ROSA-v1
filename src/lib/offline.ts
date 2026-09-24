@@ -15,5 +15,6 @@ export async function readSnapshot(): Promise<Snapshot | undefined> {
   const db = await database();
   const result = await db.get('snapshots', 'latest');
   db.close();
-  return result;
+  // Old polygon reports must never masquerade as street-specific reports.
+  return result?.schemaVersion === 2 ? result : undefined;
 }

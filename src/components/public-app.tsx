@@ -1,7 +1,7 @@
 'use client';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight,
   Check,
@@ -31,8 +31,8 @@ import {
   WifiOff,
   X,
 } from 'lucide-react';
-import { DEMO_ORIGIN } from '@/lib/demo';
-import { rankShelters, shelterStatus } from '@/lib/routing';
+import { DEMO_ORIGIN } from '@/lib/constants';
+import { rankShelters, segmentRisk, shelterStatus } from '@/lib/routing';
 import { useSnapshot } from '@/lib/use-snapshot';
 import type { HazardType, Position, RankedShelter, Shelter } from '@/lib/types';
 const Map = dynamic(() => import('./map'), {
@@ -62,6 +62,7 @@ export default function PublicApp() {
   const [tab, setTab] = useState<'shelters' | 'alerts'>('shelters'),
     [help, setHelp] = useState(false);
   const [clock, setClock] = useState(Date.now());
+  const locationRequest = useRef(0);
   useEffect(() => {
     try {
       setDark(localStorage.getItem('evacu-theme') === 'dark');
@@ -99,15 +100,24 @@ export default function PublicApp() {
   const age = snapshot
     ? Math.max(0, Math.floor((clock - new Date(snapshot.syncedAt).getTime()) / 60000))
     : 0;
-  function choose(p: Position, name = 'Selected map location') {
+  const choose = useCallback((p: Position, name = 'Selected map location') => {
+    locationRequest.current++;
+    setLocating(false);
     setOrigin(p);
     setLocationName(name);
     setPicking(false);
     setNotice('');
     setRequested(false);
     setSelected(null);
-  }
-  function locate() {
+  }, []);
+  const locate = useCallback(() => {
+    const request = ++locationRequest.current;
+    if (!window.isSecureContext) {
+      setNotice(
+        'Automatic location needs HTTPS or localhost. You can still choose your starting point manually.',
+      );
+      return;
+    }
     if (!navigator.geolocation) {
       setNotice('Location is unavailable. Choose a point on the map instead.');
       return;
@@ -116,10 +126,12 @@ export default function PublicApp() {
     setNotice('');
     navigator.geolocation.getCurrentPosition(
       (p) => {
+        if (request !== locationRequest.current) return;
         choose([p.coords.longitude, p.coords.latitude], 'Your current location');
         setLocating(false);
       },
       () => {
+        if (request !== locationRequest.current) return;
         setNotice(
           'Location permission was denied or a position could not be found. Choose a point on the map.',
         );
@@ -127,7 +139,13 @@ export default function PublicApp() {
       },
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 },
     );
-  }
+  }, [choose]);
+  useEffect(() => {
+    locate();
+    return () => {
+      locationRequest.current++;
+    };
+  }, [locate]);
   function findShelter() {
     if (!origin) {
       setPicking(true);
@@ -243,8 +261,8 @@ export default function PublicApp() {
           <aside className="demo-banner">
             <Info size={18} />
             <p>
-              <strong>Demonstration only.</strong> Shelters, roads, hazards, and boundaries are
-              illustrative. Do not use sample routes for evacuation.
+              <strong>Demonstration only.</strong> Streets follow OpenStreetMap. Shelter sites and
+              incident reports are fictional. Do not use sample routes for evacuation.
             </p>
             <span className="demo-label">SAMPLE DATA</span>
           </aside>
@@ -287,7 +305,7 @@ export default function PublicApp() {
               <button className="location-field" onClick={() => setPicking(!picking)}>
                 <MapPin size={20} />
                 <span>
-                  {locationName}
+                  {locating ? 'Finding your current location…' : locationName}
                   <small>
                     {origin
                       ? `${origin[1].toFixed(4)}° N, ${origin[0].toFixed(4)}° E`
@@ -423,10 +441,12 @@ export default function PublicApp() {
                   aria-labelledby="alerts-tab"
                   className="hazard-list"
                 >
-                  <h3>Active hazard areas</h3>
+                  <h3>Reported street hazards</h3>
                   <p>Hidden map layers still affect routing.</p>
                   {activeHazards.map((h) => {
                     const Icon = hazardIcons[h.hazard_type];
+                    const road = snapshot?.roads.find((r) => r.id === h.road_id);
+                    const blocked = road ? segmentRisk(road, snapshot!.hazards).blocked : h.blocked;
                     return (
                       <article key={h.id} className="hazard-card">
                         <Icon size={22} />
@@ -436,17 +456,16 @@ export default function PublicApp() {
                           <p>
                             {h.barangay} · {Math.round(h.severity * 100)}% severity
                           </p>
+                          <p>{h.notes}</p>
                           <small>
                             {snapshot?.demo
                               ? 'Illustrative report'
                               : new Date(h.updated_at).toLocaleString()}
                           </small>
                         </div>
-                        <span
-                          className={`badge ${h.severity >= 0.85 ? 'badge-danger' : 'badge-amber'}`}
-                        >
+                        <span className={`badge ${blocked ? 'badge-danger' : 'badge-amber'}`}>
                           <TriangleAlert size={12} />
-                          {h.severity >= 0.85 ? 'Severe' : 'Elevated'}
+                          {blocked ? 'Blocked street' : 'Affected street'}
                         </span>
                       </article>
                     );
@@ -468,6 +487,12 @@ export default function PublicApp() {
               </div>
               <button
                 className={`layer-button ${boundaries ? 'is-active' : ''}`}
+                disabled={!snapshot?.boundaries.length}
+                title={
+                  snapshot?.boundaries.length
+                    ? 'Show official boundaries'
+                    : 'No verified boundary dataset is loaded'
+                }
                 aria-pressed={boundaries}
                 onClick={() => setBoundaries(!boundaries)}
               >
@@ -544,7 +569,7 @@ export default function PublicApp() {
               )}
               <div className="map-legend">
                 <span>
-                  <i className="legend-shelter" />
+                  <House size={14} className="legend-shelter" aria-hidden="true" />
                   Shelter
                 </span>
                 <span>
@@ -553,7 +578,11 @@ export default function PublicApp() {
                 </span>
                 <span>
                   <i className="legend-hazard" />
-                  Hazard area
+                  Blocked street
+                </span>
+                <span>
+                  <i className="legend-affected" />
+                  Affected street
                 </span>
               </div>
             </div>
@@ -619,7 +648,7 @@ export default function PublicApp() {
               <span>
                 <Info size={14} />
                 {snapshot?.demo
-                  ? 'Illustrative network · not for navigation'
+                  ? 'OSM streets · sample incidents · not for navigation'
                   : 'Routes use the latest available road and hazard reports'}
               </span>
               <button className="text-button" onClick={() => void sync()}>
@@ -661,7 +690,7 @@ export default function PublicApp() {
               <TriangleAlert size={21} />
             </span>
             <div>
-              <p>Active hazard areas</p>
+              <p>Street hazard reports</p>
               <strong>
                 {activeHazards.length}
                 <small> included in route checks</small>
@@ -889,7 +918,9 @@ function HelpDialog({ onClose }: { onClose: () => void }) {
         </p>
       </section>
       <p className="inline-warning">
-        Demonstration data and synthetic routes are for evaluation only.
+        Sample incidents and shelter locations are for evaluation only. Your browser asks permission
+        before sharing your location with this page; your position is not saved or uploaded
+        automatically.
       </p>
       <button className="primary-button" onClick={onClose}>
         Got it <Check size={18} />

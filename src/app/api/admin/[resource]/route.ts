@@ -54,6 +54,8 @@ async function mutate(request: Request, context: Context, method: 'POST' | 'PATC
   const auth = await authenticate(request, context);
   if (auth.response) return auth.response;
   const { db, resource, account } = auth;
+  if (resource === 'road_hazards' && account!.role !== 'citywide')
+    return Response.json({ error: 'Only CDRRMO / citywide administrators can publish street hazard reports.' }, { status: 403 });
   if (resource === 'incident_logs')
     return Response.json({ error: 'History is append-only.' }, { status: 405 });
   let body;
@@ -96,17 +98,22 @@ async function mutate(request: Request, context: Context, method: 'POST' | 'PATC
         { error: 'You can only manage records in your assigned barangay.' },
         { status: 403 },
       );
-    const payload =
+    const payload: Record<string, unknown> =
       'geometry' in parsed.data
         ? ({ ...parsed.data, geom: parsed.data.geometry } as Record<string, unknown>)
         : { ...parsed.data };
     delete (payload as Record<string, unknown>).geometry;
+    if (resource === 'road_hazards') {
+      const { data: road, error: roadError } = await db!.from('roads').select('id').eq('id', payload.road_id).single();
+      if (roadError || !road) return Response.json({ error: 'Select an existing street segment.' }, { status: 400 });
+    }
     query =
       method === 'POST'
         ? db!.from(resource!).insert(payload).select()
         : db!.from(resource!).update(payload).eq(key, id!).select();
   }
   const { data, error } = await query;
+  if (error?.code === '23505' && resource === 'road_hazards') return Response.json({ error: 'An active report for this hazard already exists on this segment. Edit or clear that report first.' }, { status: 409 });
   if (error)
     return Response.json(
       { error: 'Change rejected. Check permissions, geometry, and field values.' },

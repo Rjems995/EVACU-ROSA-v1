@@ -4,9 +4,9 @@ This is a transparent prototype model with manually chosen parameters. Membershi
 
 ## Inputs and geometry
 
-Every road has a degradation value in `[0,1]`, with 0 clear and 1 impassable. Active hazards have severity in `[0,1]`. A GeoJSON line/polygon intersection test includes hazards touching or crossing a road, even when both road endpoints lie outside the polygon.
+Every road has a degradation value in `[0,1]`, with 0 clear and 1 impassable. Active street reports have severity in `[0,1]` and reference a road ID. Only reports whose `road_id` equals the current segment's ID affect that segment. There is no polygon intersection or propagation to neighboring streets.
 
-For a road, flood and fire inputs are the maximum intersecting severity of that type. Exposure is the maximum severity of **all three hazard types**, including earthquake. This keeps four fuzzy inputs while accounting for earthquake damage/exposure. Inactive hazards have no effect. These values are report severities; the app does not infer water depth, fire spread, or earthquake intensity from them.
+For a road, flood and fire inputs are the maximum active severity of that type reported on that road. Exposure is the maximum reported severity across all three types, including earthquake. An explicit blocked report excludes the segment even with low severity. Inactive/cleared reports have no effect; clearing one report does not clear other active reports.
 
 ## Fuzzification
 
@@ -42,7 +42,7 @@ Centroid defuzzification evaluates `z = 0, 1, …, 100`: `score = Σ z·μ(z) / 
 
 ## Exclusion and A*
 
-A segment is unavailable if explicitly blocked, degradation ≥ 0.95, any intersecting active severity ≥ 0.85, or fuzzy score ≥ 80. These hard exclusions prevent trading a known severe hazard for a shorter path.
+A segment is unavailable if its road condition or any active linked report explicitly blocks it, degradation ≥ 0.95, any active linked severity ≥ 0.85, or fuzzy score ≥ 80. These exclusions are shared by routing and the public map's blocked-street styling.
 
 Graph nodes are stable `source`/`target` identifiers and endpoint coordinates. Edges preserve their original polyline geometry. `oneway` controls whether the reverse edge is available. Length sums Haversine distance over every vertex.
 
@@ -54,11 +54,11 @@ Origin and destination snap to the nearest graph node, not the nearest arbitrary
 
 ## Shelter eligibility and ranking
 
-Exclude closed/full shelters, unreachable shelters, and shelters inside active hazard polygons with severity ≥ 0.7. The optional step-free filter uses a shelter attribute, not route accessibility certification.
+Exclude closed/full and unreachable shelters. Street reports do not invent area-wide shelter closures; operators must close a shelter explicitly if it is unsafe. The optional step-free filter uses a shelter attribute, not route accessibility certification.
 
 `score = routeCost + 600 × occupancy/capacity + 1200 × proximity`.
 
-Proximity is the maximum active severity scaled linearly from 1 at the polygon to 0 at 1,000 m. For sites outside a polygon, this implementation approximates distance with its nearest boundary **vertex**; it is not an exact boundary-distance calculation. Sites inside a polygon use its full severity. Production calibration should replace this with PostGIS geography distance or another validated model.
+Proximity is the maximum active severity scaled linearly from 1 at an affected street to 0 at 1,000 m. Distance uses the closest LineString vertex as an approximation; it is not exact line-distance calculation. This penalty affects shelter ordering only, not which neighboring streets are blocked. Production calibration should use a validated line-distance model.
 
 Open: below 80% occupancy. Near full: 80% to below 100%. Full: no remaining capacity. Closed overrides capacity.
 

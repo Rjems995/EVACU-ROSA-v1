@@ -3,13 +3,14 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Check, LogOut, Plus, ShieldCheck, Trash2 } from 'lucide-react';
 import { configured, supabase } from '@/lib/supabase';
-import { demoSnapshot } from '@/lib/demo';
+import RoadPicker from '@/components/road-picker';
+import type { Road, Snapshot } from '@/lib/types';
 type RecordData = Record<string, unknown>;
 type Resource =
-  'evacuation_centers' | 'hazard_zones' | 'roads' | 'admin_accounts' | 'incident_logs';
+  'evacuation_centers' | 'road_hazards' | 'roads' | 'admin_accounts' | 'incident_logs';
 const labels: Record<Resource, string> = {
   evacuation_centers: 'Shelters',
-  hazard_zones: 'Hazards',
+  road_hazards: 'Street hazards',
   roads: 'Road conditions',
   admin_accounts: 'Administrators',
   incident_logs: 'Change history',
@@ -25,24 +26,13 @@ const defaults: Record<Exclude<Resource, 'incident_logs'>, RecordData> = {
     amenities: ['Drinking water', 'Toilets'],
     geometry: { type: 'Point', coordinates: [121.109, 14.297] },
   },
-  hazard_zones: {
-    name: '',
-    barangay: '',
+  road_hazards: {
+    road_id: '',
     hazard_type: 'flood',
     severity: 0.5,
+    blocked: true,
     active: true,
-    geometry: {
-      type: 'Polygon',
-      coordinates: [
-        [
-          [121.108, 14.296],
-          [121.11, 14.296],
-          [121.11, 14.298],
-          [121.108, 14.298],
-          [121.108, 14.296],
-        ],
-      ],
-    },
+    notes: '',
   },
   roads: {
     name: '',
@@ -83,6 +73,7 @@ const fieldLabels: Record<string, string> = {
   user_id: 'Existing Supabase Auth user UUID',
   role: 'Access role',
   geometry: 'GeoJSON geometry (longitude, latitude)',
+  notes: 'CDRRMO report details (optional)',
 };
 const choices: Record<string, string[]> = {
   status: ['open', 'closed'],
@@ -104,6 +95,7 @@ export default function AdminPage() {
     [busy, setBusy] = useState(false),
     [checking, setChecking] = useState(Boolean(db));
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [roads, setRoads] = useState<Road[]>([]);
   useEffect(() => {
     if (!db) return;
     const apply = async (accessToken: string, userId: string) => {
@@ -142,11 +134,14 @@ export default function AdminPage() {
   }, [db]);
   const load = useCallback(async () => {
     if (!db) {
-      const s = demoSnapshot();
+      const response = await fetch('/api/snapshot');
+      if (!response.ok) { setMessage('Sample street data could not be loaded.'); return; }
+      const s: Snapshot = await response.json();
+      setRoads(s.roads);
       setRecords(
         (resource === 'evacuation_centers'
           ? s.shelters
-          : resource === 'hazard_zones'
+          : resource === 'road_hazards'
             ? s.hazards
             : resource === 'roads'
               ? s.roads
@@ -163,6 +158,12 @@ export default function AdminPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
       setRecords(json);
+      if (resource === 'road_hazards') {
+        const response = await fetch('/api/snapshot', { cache: 'no-store' });
+        if (!response.ok) throw new Error('Street list unavailable. Refresh before reporting.');
+        const snapshot: Snapshot = await response.json();
+        setRoads(snapshot.roads);
+      }
     } catch (e) {
       setMessage(e instanceof Error ? e.message : 'Unable to load records.');
     } finally {
@@ -173,7 +174,7 @@ export default function AdminPage() {
     setDraft(null);
     setDeleteId(null);
     setRecords([]);
-    void load();
+    void load().catch(() => setMessage('Street data could not be loaded. Please retry.'));
   }, [load]);
   async function signIn(e: React.FormEvent) {
     e.preventDefault();
@@ -223,6 +224,7 @@ export default function AdminPage() {
     setMessage('');
     try {
       const payload = { ...draft };
+      if (resource === 'road_hazards' && !payload.road_id) throw new Error('Select the affected street segment first.');
       if ('geometry' in payload) payload.geometry = JSON.parse(String(payload.geometry));
       if ('amenities' in payload)
         payload.amenities = String(payload.amenities)
@@ -385,13 +387,15 @@ export default function AdminPage() {
                   {records.length === 1000 ? ' — first 1,000 records' : ''})
                 </span>
               </h2>
-              {token && resource !== 'incident_logs' && (
+              {token && resource !== 'incident_logs' && (resource !== 'road_hazards' || role === 'citywide') && (
                 <button className="secondary-button flex items-center gap-2" onClick={() => edit()}>
                   <Plus size={17} />
-                  Add record
+                  {resource === 'road_hazards' ? 'Report street hazard' : 'Add record'}
                 </button>
               )}
+              {!db && resource === 'road_hazards' && <button className="secondary-button" onClick={() => edit()}>Preview street reporting</button>}
             </div>
+            {resource === 'road_hazards' && <p className="my-3">CDRRMO selects the affected street segment and marks it blocked or affected. Clearing a report removes that hazard from routing; other active reports still apply.</p>}
             {message && (
               <p role="status" className="inline-warning">
                 {message}
@@ -429,8 +433,13 @@ export default function AdminPage() {
                     UUID and access role here.
                   </p>
                 )}
+                {resource === 'road_hazards' && <>
+                  <RoadPicker roads={roads} selectedId={String(draft.road_id)} onSelect={id => setDraft({ ...draft, road_id: id })} />
+                  <h3 className="mt-5 text-lg font-bold">2. Describe the street condition</h3>
+                  <p className="my-2">A blocked segment is excluded from routes. Severity of 85% or higher also excludes it, even if “Road blocked” is set to No.</p>
+                </>}
                 <div className="admin-form-grid">
-                  {Object.entries(draft).map(([key, value]) => (
+                  {Object.entries(draft).filter(([key]) => key !== 'road_id').map(([key, value]) => (
                     <label className={`field ${key === 'geometry' ? 'wide' : ''}`} key={key}>
                       {fieldLabels[key] || key}
                       {key === 'geometry' ? (
@@ -461,7 +470,7 @@ export default function AdminPage() {
                         <input
                           required={
                             !(key === 'barangay' && draft.role === 'citywide') &&
-                            key !== 'amenities'
+                            key !== 'amenities' && key !== 'notes'
                           }
                           type={typeof value === 'number' ? 'number' : 'text'}
                           step={['severity', 'condition'].includes(key) ? 0.01 : 'any'}
@@ -485,7 +494,7 @@ export default function AdminPage() {
                   ))}
                 </div>
                 <div className="admin-actions">
-                  <button className="primary-button" disabled={busy}>
+                  <button className="primary-button" disabled={busy || !token}>
                     Save changes
                     <Check size={17} />
                   </button>
@@ -493,6 +502,7 @@ export default function AdminPage() {
                     Cancel
                   </button>
                 </div>
+                {!token && <p className="inline-warning">Preview only. Connect Supabase and sign in with CDRRMO / citywide access to publish this report.</p>}
               </form>
             )}
             {busy && !records.length ? (
@@ -502,9 +512,9 @@ export default function AdminPage() {
                 className="admin-grid mt-5 lg:gap-5 xl:gap-6"
                 aria-label={`${labels[resource]} records`}
               >
-                {records.map((r, i) => (
+                {records.slice(0, 100).map((r, i) => (
                   <article className="admin-record" key={String(r.id || r.user_id || i)}>
-                    <h3>{String(r.name || r.user_id || `${r.action} · ${r.resource}`)}</h3>
+                    <h3>{String(r.name || (resource === 'road_hazards' ? roads.find(road => road.id === r.road_id)?.name || 'Street segment' : r.user_id || `${r.action} · ${r.resource}`))}</h3>
                     <p>
                       {String(r.barangay || 'Citywide')}
                       {r.role ? ` · ${r.role}` : ''}
@@ -514,12 +524,13 @@ export default function AdminPage() {
                         {String(r.occupancy)} / {String(r.capacity)} occupied · {String(r.status)}
                       </p>
                     )}
-                    {resource === 'hazard_zones' && (
+                    {resource === 'road_hazards' && (
                       <p>
                         {String(r.hazard_type)} · {Math.round(Number(r.severity) * 100)}% severity ·{' '}
-                        {r.active ? 'Active' : 'Resolved'}
+                        {r.active ? r.blocked || Number(r.severity) >= .85 ? 'Blocked' : 'Affected' : 'Cleared'}
                       </p>
                     )}
+                    {resource === 'road_hazards' && <p>{String(r.notes || '')}</p>}
                     {resource === 'roads' && (
                       <p>
                         {r.blocked ? 'Blocked' : 'Passable'} ·{' '}
@@ -541,7 +552,7 @@ export default function AdminPage() {
                         </pre>
                       </details>
                     ) : (
-                      token && (
+                      token && (resource !== 'road_hazards' || role === 'citywide') && (
                         <footer>
                           <button className="secondary-button" onClick={() => edit(r)}>
                             Edit record

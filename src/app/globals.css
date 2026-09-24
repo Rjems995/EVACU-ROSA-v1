@@ -852,10 +852,7 @@ h1 > span {
   height: 9px;
 }
 .legend-shelter {
-  background: #23774c;
-  border: 2px solid #fff;
-  border-radius: 50%;
-  box-shadow: 0 0 0 1px #23774c;
+  color: #23774c;
 }
 .legend-route {
   background: #23774c;
@@ -863,10 +860,20 @@ h1 > span {
   width: 13px !important;
 }
 .legend-hazard {
-  background: #fae4d7;
-  border: 1px solid #c2553c;
+  background: #b8322b;
+  border: 1px solid #b8322b;
   border-radius: 2px;
 }
+.legend-affected { background: #a16207; border-radius: 2px; }
+.street-label { font-weight: 600; color: #18342d; border-color: #b8322b; max-width: 18rem; white-space: normal; }
+.street-picker { padding: 1rem; border: 1px solid var(--line); border-radius: .6rem; margin-top: 1rem; }
+.street-picker-map { height: clamp(18rem, 42vh, 30rem); border-radius: .5rem; z-index: 0; }
+.street-picker-options { max-height: 16rem; overflow-y: auto; border: 1px solid var(--line); padding: .5rem; border-radius: .5rem; }
+.street-option { display: flex; align-items: center; gap: .75rem; padding: .7rem; min-height: 44px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.street-option input { width: 20px; height: 20px; flex-shrink: 0; }
+.street-option small { display: block; color: var(--muted); overflow-wrap: anywhere; }
+.selected-street { background: var(--green-soft); color: var(--green); padding: .75rem; margin-top: .75rem; border-radius: .4rem; overflow-wrap: anywhere; }
+.map-legend { flex-wrap: wrap; max-width: calc(100% - 4.5rem); }
 .map-footer {
   display: flex;
   align-items: center;

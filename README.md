@@ -2,7 +2,7 @@
 
 A responsive evacuation-map application for Santa Rosa City, Laguna. Built with Next.js App Router, React, TypeScript, Tailwind CSS, Leaflet, Supabase Auth, PostgreSQL/PostGIS, Mamdani fuzzy inference, A* routing, and IndexedDB.
 
-**The default dataset is a synthetic demonstration, not operational evacuation guidance.** The place names, capacities, road links, hazard reports, and rectangular boundaries are illustrative. No official city endorsement or data verification is implied.
+**The default dataset is a demonstration, not operational evacuation guidance.** The road lines now follow a 5,000-segment OpenStreetMap extract. Shelter locations, capacities, and incident reports are fictional. Official boundaries are not included. See [street data attribution](src/data/README.md).
 
 ## Run locally
 
@@ -14,9 +14,15 @@ npm.cmd install
 npm.cmd run dev
 ```
 
-Open <http://localhost:3000>. Use **Try sample location**, then **Find Shelter Now**. The admin preview is at `/admin`. The app works in demo mode without any account or environment variables.
+Open <http://localhost:3000>. The app requests your location automatically; allow the browser prompt to use it. If permission is denied or you are outside the sample network, use **Try sample location**, then **Find Shelter Now**. The admin preview is at `/admin`, including **Street hazards → Preview street reporting**. The app works in demo mode without credentials.
 
 The helper changes PATH only in the current PowerShell session. For another terminal, dot-source it again. Alternatively install Node.js system-wide and use normal `npm` commands.
+
+If PowerShell blocks `.ps1` scripts, use this session-only PATH command instead:
+
+```powershell
+$env:Path = "$PWD\.tools\node-v22.23.3-win-x64;$env:Path"
+```
 
 ```powershell
 npm.cmd test
@@ -27,8 +33,8 @@ npm.cmd start
 
 ## Connect Supabase
 
-1. Create a Supabase project. Run `supabase/migrations/001_initial.sql` in its SQL editor. It enables PostGIS in `extensions`, creates tables, spatial indexes, RLS policies, audit triggers, and the public snapshot RPC.
-2. For a **disposable demonstration database only**, run `supabase/seed.sql`. This loads the same synthetic graph and illustrative locations as the browser demo. Seed data stays explicitly marked as demonstration data.
+1. Create a Supabase project. Run `001_initial.sql`, then `002_street_hazards.sql` from `supabase/migrations/` in its SQL editor. Existing installs need migration 002. It creates CDRRMO-only street reports and preserves old polygon reports as an administrator-only archive.
+2. For a **fresh disposable demonstration database only**, run `supabase/seed.sql`. It loads OSM street geometry and fictional incidents/shelters. Do not run this seed over a live database.
 3. Copy `.env.example` to `.env.local`. Fill in your project URL and public anon key. Never put the service-role key in a `NEXT_PUBLIC_` variable. Restart/rebuild Next.js after changing these values.
 4. Create an administrator in Supabase **Authentication → Users**. Assign its UUID using the SQL editor:
 
@@ -40,12 +46,12 @@ values ('AUTH-USER-UUID-HERE', 'citywide', null);
 5. Sign in at `/admin`. City administrators can assign/revoke app roles for **existing Auth users**. Creating Auth identities, password resets, and deleting Auth identities remain in the Supabase dashboard; the application deliberately has no service-role credential.
 6. Run the RLS verification script in a disposable Supabase database: `supabase/tests/rls.sql`. It rolls back its fixtures.
 
-Barangay administrators can write only records in their assigned barangay. Citywide/CDRRMO administrators can manage all operational records and other administrators. Nobody can change their own app role through the API or ordinary authenticated database access. Public clients can read operational information, but cannot modify it or see administrator accounts/audit history. The API uses the caller's JWT, verifies it with `auth.getUser()`, and leaves RLS enabled for every write.
+Barangay administrators can manage assigned shelters/road conditions. **Only citywide/CDRRMO administrators publish, update, or clear street hazard reports.** Nobody can change their own app role through the API or ordinary authenticated database access. The API verifies the caller's JWT with `auth.getUser()` and leaves RLS enabled for every write. See the [reporting workflow and migration guide](docs/street-reporting.md).
 
 ## What is included
 
-- Public map, location permission flow, manual map point selection, shelter search, accessible-entrance filter, hazard toggles, boundary toggle, ranked shelters, route display and segment list.
-- Flood, fire, and earthquake overlays. Hiding a map layer **never** removes it from risk calculations.
+- Automatic location request with permission/HTTPS fallback, manual coordinates/map selection, shelter search, accessible-entrance filter, hazard toggles, ranked shelters, and route details.
+- Flood, fire, and earthquake reports highlight only the selected street segment: red for blocked, amber for affected, paired with status text and named street labels. Hiding a layer **never** removes its reports from routing.
 - Capacity/status indicators, reported facilities, walking-time estimates, high-contrast dark theme, mobile sticky primary action, semantic forms/buttons, keyboard-accessible shelter list, reduced-motion support.
 - CRUD for shelters, hazards, road conditions/geometry, and app administrator roles; immutable operational change history. Admin tables are presented as responsive cards.
 - IndexedDB snapshots including the graph, shelters, boundaries, and hazards. Offline route computation uses that snapshot. Online/reconnect/visibility events and a one-minute poll update data and recalculate displayed routes.
@@ -62,12 +68,14 @@ Service-worker registration is enabled in production builds. Use `npm run build`
 | `/api/hazards` | GET | Hazard reports |
 | `/api/routes` | POST | Ranked reachable shelters and routes |
 | `/api/admin/evacuation_centers` | GET/POST/PATCH/DELETE | Shelter management |
-| `/api/admin/hazard_zones` | GET/POST/PATCH/DELETE | Hazard management |
+| `/api/admin/road_hazards` | GET/POST/PATCH/DELETE | Street reports; CDRRMO-only writes |
 | `/api/admin/roads` | GET/POST/PATCH/DELETE | Road management |
 | `/api/admin/admin_accounts` | GET/POST/PATCH/DELETE | City-admin role assignments |
 | `/api/admin/incident_logs` | GET | Authorized history, newest first |
 
 Route body: `{"origin":[121.109,14.297],"accessibleOnly":false}`. Coordinates are always **longitude, latitude**. Admin requests require `Authorization: Bearer <access_token>`; PATCH/DELETE require `?id=<uuid>`. PATCH accepts a complete editable record, not an arbitrary partial update. Geometry input is GeoJSON in `geometry`. SQL stores GeoJSON in `geom` and generates a typed, indexed PostGIS `location` column from it. Public output is serialized from PostGIS with `ST_AsGeoJSON`.
+
+Street reports accept `{road_id, hazard_type, severity, blocked, active, notes}`. Geometry is derived from the referenced road, never accepted from the report form or request body. The database sets the report's barangay and author.
 
 ## Algorithms and limitations
 
@@ -77,7 +85,7 @@ The sample is a functional prototype, not a validated emergency system. Supabase
 
 ## Replacing the synthetic data
 
-Import verified shelter locations and capacity reports, official city/barangay polygons, an approved hazard feed, and a properly noded OSM-derived road graph. See [docs/data-import.md](docs/data-import.md). The included graph is intentionally synthetic; it is not an OSM road extract. The base map is OSM.
+Verify the sample OSM graph or replace it with an approved full-city network, import verified shelters and official boundaries, and have CDRRMO publish actual street incidents. See [docs/data-import.md](docs/data-import.md) and [the extract provenance](src/data/README.md). The sample has unverified access/topology and no official barangay assignments.
 
 After validation, a database operator can set `dataset_metadata.is_demo = false`. That flag is not writable by app administrators. Remove all synthetic records first. The application does not silently fall back to demo data if a configured Supabase service fails; it displays an error and uses previously cached data where available.
 
