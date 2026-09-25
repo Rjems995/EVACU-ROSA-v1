@@ -1,11 +1,15 @@
 'use client';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Check, LogOut, Plus, ShieldCheck, Trash2, Waves, Flame, Mountain } from 'lucide-react';
 import { configured, supabase } from '@/lib/supabase';
 import RoadPicker from '@/components/road-picker';
 import type { Road, Snapshot } from '@/lib/types';
 type RecordData = Record<string, unknown>;
+const ShelterLocationPicker = dynamic(() => import('@/components/shelter-location-picker'), {
+  ssr: false, loading: () => <p>Loading shelter location map…</p>,
+});
 type Resource =
   'evacuation_centers' | 'road_hazards' | 'roads' | 'admin_accounts' | 'incident_logs';
 const labels: Record<Resource, string> = {
@@ -210,6 +214,7 @@ export default function AdminPage() {
             ? (initial[key] as string[]).join(', ')
             : (initial[key] ?? '');
     setDraft(clean);
+    if (resource === 'evacuation_centers' && !record) setDraft({ ...clean, geometry: '' });
     setEditId(record ? String(record[resource === 'admin_accounts' ? 'user_id' : 'id']) : null);
     setMessage('');
     setTimeout(
@@ -227,6 +232,7 @@ export default function AdminPage() {
     setMessage('');
     try {
       const payload = { ...draft };
+      if (resource === 'evacuation_centers' && !payload.geometry) throw new Error('Select the shelter location on the map first.');
       if (resource === 'road_hazards' && !payload.road_id) throw new Error('Select the affected street segment first.');
       if ('geometry' in payload) payload.geometry = JSON.parse(String(payload.geometry));
       if ('amenities' in payload)
@@ -454,8 +460,9 @@ export default function AdminPage() {
                   <h3 className="mt-5 text-lg font-bold">2. Describe the street condition</h3>
                   <p className="my-2">A blocked segment is excluded from routes. Severity of 85% or higher also excludes it, even if “Road blocked” is set to No.</p>
                 </>}
+                {resource === 'evacuation_centers' && <ShelterLocationPicker value={String(draft.geometry || '')} onChange={geometry => setDraft(current => current ? {...current, geometry} : current)} />}
                 <div className="admin-form-grid">
-                  {Object.entries(draft).filter(([key]) => key !== 'road_id').map(([key, value]) => (
+                  {Object.entries(draft).filter(([key]) => key !== 'road_id' && !(resource === 'evacuation_centers' && key === 'geometry')).map(([key, value]) => (
                     <label className={`field ${key === 'geometry' ? 'wide' : ''}`} key={key}>
                       {fieldLabels[key] || key}
                       {key === 'geometry' ? (
@@ -510,7 +517,7 @@ export default function AdminPage() {
                   ))}
                 </div>
                 <div className="admin-actions">
-                  <button className="primary-button" disabled={busy || !token}>
+                  <button className="primary-button" disabled={busy || !token || (resource === 'evacuation_centers' && !draft.geometry)}>
                     {resource === 'road_hazards' ? draft.active ? editId ? 'Update report' : 'Publish report' : 'Save cleared report' : 'Save changes'}
                     <Check size={17} />
                   </button>

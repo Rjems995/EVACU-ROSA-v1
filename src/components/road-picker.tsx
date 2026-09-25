@@ -30,7 +30,7 @@ export default function RoadPicker({
     <section className="street-picker" aria-label="Select the affected street segment">
       <h3 className="text-lg font-bold">1. Select the affected street segment</h3>
       <p className="my-2">
-        Tap a street on the map or search below. Only the highlighted segment will be reported.
+        Tap the incident location to select the nearest street, or tap a street directly. Check the highlighted segment before publishing. Only that segment will be reported.
       </p>
       <StreetMap roads={roads} selectedId={selectedId} onSelect={onSelect} disabled={disabled} />
       <label className="field">
