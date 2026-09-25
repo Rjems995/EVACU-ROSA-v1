@@ -54,6 +54,9 @@ export const schemas = {
     ),
 };
 export const routeInput = z.object({ origin: coordinate, accessibleOnly: z.boolean().optional() });
+export const batchHazardInput = schemas.road_hazards.omit({road_id:true}).extend({
+  road_ids: z.array(z.uuid()).min(1).max(100).refine(ids => new Set(ids).size === ids.length, 'Select each street only once.'),
+}).strict();
 export const assistanceInput = z.object({
   id: z.uuid(), origin: coordinate, source: z.enum(['gps','selected']),
   details: z.string().trim().max(500), contact: z.string().trim().max(120),

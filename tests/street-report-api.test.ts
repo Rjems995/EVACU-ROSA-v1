@@ -83,6 +83,24 @@ it('lets CDRRMO publish a report referencing a known road', async () => {
   expect((await send(report)).status).toBe(201);
   expect(state.payload).toEqual(report);
 });
+it('publishes multiple street reports in one insert', async () => {
+  const {road_id, ...fields} = report;
+  const ids = [road_id, '55555555-5555-4555-8555-555555555555'];
+  expect((await send({...fields, road_ids:ids})).status).toBe(201);
+  expect(state.payload).toEqual(ids.map(road_id => ({...fields,road_id})));
+});
+it('rejects empty or duplicate batch selections without writing', async () => {
+  const {road_id, ...fields} = report;
+  expect((await send({...fields, road_ids:[]})).status).toBe(400);
+  expect((await send({...fields, road_ids:[road_id,road_id]})).status).toBe(400);
+  expect(state.payload).toBeNull();
+});
+it('rejects batch publication by barangay administrators', async () => {
+  state.role = 'barangay';
+  const {road_id, ...fields} = report;
+  expect((await send({...fields, road_ids:[road_id]})).status).toBe(403);
+  expect(state.payload).toBeNull();
+});
 it('lets CDRRMO clear an existing incident without deleting its history', async () => {
   const response = await PATCH(new Request('http://localhost/api/admin/road_hazards?id=44444444-4444-4444-8444-444444444444', {
     method: 'PATCH', headers: {'Content-Type':'application/json', Authorization:'Bearer test-token'},

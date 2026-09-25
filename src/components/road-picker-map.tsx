@@ -8,11 +8,13 @@ export default function RoadPickerMap({
   selectedId,
   onSelect,
   disabled,
+  selectedIds,
 }: {
   roads: Road[];
   selectedId: string;
   onSelect: (id: string) => void;
   disabled: boolean;
+  selectedIds?: string[];
 }) {
   const container = useRef<HTMLDivElement>(null),
     map = useRef<L.Map | null>(null);
@@ -80,25 +82,27 @@ export default function RoadPickerMap({
   }, [roads]);
   useEffect(() => {
     selection.current?.clearLayers();
-    const road = roads.find((r) => r.id === selectedId);
-    if (!road || !selection.current) return;
+    const selectedRoads = selectedIds ? roads.filter(road => selectedIds.includes(road.id)) : roads.filter(road => road.id === selectedId);
+    if (!selection.current) return;
+    for (const road of selectedRoads) {
     const highlight = L.geoJSON(road.geometry, {
       style: { color: '#b8322b', weight: 10, opacity: 1 },
       interactive: false,
     }).addTo(selection.current);
     highlight.bringToFront();
-    map.current?.fitBounds(highlight.getBounds(), {
+    if (!selectedIds) map.current?.fitBounds(highlight.getBounds(), {
       padding: [45, 45],
       maxZoom: 17,
       animate: false,
     });
-  }, [roads, selectedId]);
+    }
+  }, [roads, selectedId, selectedIds]);
   return (
     <><div
       ref={container}
       className="street-picker-map"
       role="region"
-      aria-label="Street selection map. The search and radio buttons below offer the same selection."
+      aria-label="Street selection map. Use the search and street selection controls below for keyboard access."
     />{message && <p className="my-2" role="status">{message}</p>}</>
   );
 }

@@ -87,8 +87,8 @@ test('CDRRMO preview selects a street instead of entering a polygon', async ({ p
   await page.getByRole('button', { name: 'Street hazards', exact: true }).click();
   await page.getByRole('button', { name: 'Prepare street report' }).click();
   await page.getByRole('searchbox', { name: 'Search street name' }).fill('Tatlong Hari Street');
-  await page.getByRole('radio').first().check();
-  await expect(page.locator('.selected-street')).toContainText('Tatlong Hari Street');
+  await page.locator('.street-picker-options input[type=checkbox]').first().check();
+  await expect(page.getByRole('list', {name:'Selected streets'})).toContainText('Tatlong Hari Street');
   await expect(page.getByLabel('GeoJSON geometry (longitude, latitude)')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Publish report' })).toBeDisabled();
 });

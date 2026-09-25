@@ -101,6 +101,7 @@ export default function AdminPage() {
     [checking, setChecking] = useState(Boolean(db));
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [roads, setRoads] = useState<Road[]>([]);
+  const [selectedRoadIds, setSelectedRoadIds] = useState<string[]>([]);
   const [reportFilter, setReportFilter] = useState('active');
   const [reportSearch, setReportSearch] = useState('');
   useEffect(() => {
@@ -199,6 +200,7 @@ export default function AdminPage() {
     }
   }
   function edit(record?: RecordData, changes: RecordData = {}) {
+    setSelectedRoadIds([]);
     if (resource === 'incident_logs') return;
     const initial: RecordData = {
       ...defaults[resource],
@@ -234,7 +236,13 @@ export default function AdminPage() {
     try {
       const payload = { ...draft };
       if (resource === 'evacuation_centers' && !payload.geometry) throw new Error('Select the shelter location on the map first.');
-      if (resource === 'road_hazards' && !payload.road_id) throw new Error('Select the affected street segment first.');
+      if (resource === 'road_hazards') {
+        if (!editId) {
+          if (!selectedRoadIds.length) throw new Error('Select at least one affected street.');
+          delete payload.road_id;
+          payload.road_ids = selectedRoadIds;
+        } else if (!payload.road_id) throw new Error('Select the affected street segment first.');
+      }
       if ('geometry' in payload) payload.geometry = JSON.parse(String(payload.geometry));
       if ('amenities' in payload)
         payload.amenities = String(payload.amenities)
@@ -254,7 +262,7 @@ export default function AdminPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
       setDraft(null);
-      setMessage('Record saved. Public data will refresh within one minute.');
+      setMessage(resource === 'road_hazards' && !editId ? `${selectedRoadIds.length} street reports published. Public data will refresh within one minute.` : 'Record saved. Public data will refresh within one minute.');
       await load();
     } catch (e) {
       setMessage(e instanceof Error ? e.message : 'Unable to save.');
@@ -458,7 +466,7 @@ export default function AdminPage() {
                   </p>
                 )}
                 {resource === 'road_hazards' && <>
-                  <RoadPicker roads={roads} selectedId={String(draft.road_id)} onSelect={id => setDraft({ ...draft, road_id: id })} />
+                  <RoadPicker roads={roads} selectedId={String(draft.road_id)} onSelect={id => setDraft({ ...draft, road_id: id })} selectedIds={!editId ? selectedRoadIds : undefined} onSelectionChange={!editId ? setSelectedRoadIds : undefined} disabled={busy} />
                   <h3 className="mt-5 text-lg font-bold">2. Describe the street condition</h3>
                   <p className="my-2">A blocked segment is excluded from routes. Severity of 85% or higher also excludes it, even if “Road blocked” is set to No.</p>
                 </>}

@@ -21,8 +21,8 @@ test('CDRRMO can prepare all three report types with exact street selection', as
     await page.getByRole('button', { name: button }).click();
     await expect(page.getByRole('combobox', {name:'Hazard type', exact: true})).toHaveValue(type);
     await page.getByRole('searchbox', {name:'Search street name'}).fill('Tatlong Hari Street');
-    await page.getByRole('radio').first().check();
-    await expect(page.locator('.selected-street')).toContainText('Tatlong Hari Street');
+    await page.locator('.street-picker-options input[type=checkbox]').first().check();
+    await expect(page.getByRole('list', {name:'Selected streets'})).toContainText('Tatlong Hari Street');
     await expect(page.getByRole('button', {name:'Publish report'})).toBeDisabled();
     await page.getByRole('button', {name:'Cancel', exact:true}).click();
   }

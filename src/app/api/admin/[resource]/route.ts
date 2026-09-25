@@ -1,5 +1,5 @@
 import { configured, supabase } from '@/lib/supabase';
-import { schemas } from '@/lib/validation';
+import { schemas, batchHazardInput } from '@/lib/validation';
 import { z } from 'zod';
 type Context = { params: Promise<{ resource: string }> };
 async function authenticate(request: Request, context: Context) {
@@ -68,6 +68,17 @@ async function mutate(request: Request, context: Context, method: 'POST' | 'PATC
     return Response.json({ error: 'Invalid JSON.' }, { status: 400 });
   }
   const id = new URL(request.url).searchParams.get('id');
+  if (resource === 'road_hazards' && method === 'POST' && body && typeof body === 'object' && 'road_ids' in body) {
+    const parsed = batchHazardInput.safeParse(body);
+    if (!parsed.success) return Response.json({error:parsed.error.issues.map(issue => issue.message).join(' ')}, {status:400});
+    const {road_ids, ...report} = parsed.data;
+    // One database insert is transactional: a conflict or missing road rolls back the whole batch.
+    const {data, error} = await db!.from('road_hazards').insert(road_ids.map(road_id => ({...report, road_id}))).select();
+    if (error) return Response.json({error: error.code === '23505'
+      ? 'Nothing was published. An active report of this type already exists on a selected street. Deselect that street or edit its existing report.'
+      : 'Nothing was published. Check that all selected streets still exist and your account has CDRRMO access.'}, {status:error.code === '23505' ? 409 : 400});
+    return Response.json(data, {status:201});
+  }
   if (method !== 'POST' && !z.uuid().safeParse(id).success)
     return Response.json({ error: 'A valid record ID is required.' }, { status: 400 });
   const key = resource === 'admin_accounts' ? 'user_id' : 'id';

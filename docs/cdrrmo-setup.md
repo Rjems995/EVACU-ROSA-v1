@@ -13,7 +13,7 @@ values ('REPLACE-WITH-AUTH-USER-UUID', 'citywide', null);
 ```
 
 5. Open `/admin` and sign in. Add locally verified shelters under **Shelters**. Review road access and coverage before operational use; the imported network is partial, with unverified barangay assignments.
-6. Under **Street hazards**, choose **Report flooding**, **Report fire**, or **Report earthquake damage**. Select the affected road segment on the map or through search. Set severity, blocked status, and report details, then **Publish report**. Repeat for other affected segments.
+6. Under **Street hazards**, choose **Report flooding**, **Report fire**, or **Report earthquake damage**. Tap multiple affected street segments on the map or select their search checkboxes (up to 100). Tap a selected street again or use **Remove** to deselect it. Review the selected list, set shared severity, blocked status, and report details, then **Publish report**. All selected streets save in one transaction. If an active report of the same hazard type already exists on a selected street, the entire batch is rejected; deselect that street or edit its existing report. Editing existing reports remains per street. No additional migration is required for multi-street reporting.
 7. To clear an incident, choose **Mark as cleared**, review the selected street, and **Save cleared report**. History is retained. Other active hazards or road conditions can still block that street.
 
 Only authenticated citywide/CDRRMO accounts can publish or clear street incidents; the server and database both enforce this. The public map refreshes within one minute, on returning to the page, or using **Refresh data**. Reports persist in the shared database and are visible across devices.

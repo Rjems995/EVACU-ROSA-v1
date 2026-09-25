@@ -11,11 +11,15 @@ export default function RoadPicker({
   selectedId,
   onSelect,
   disabled = false,
+  selectedIds,
+  onSelectionChange,
 }: {
   roads: Road[];
   selectedId: string;
   onSelect: (id: string) => void;
   disabled?: boolean;
+  selectedIds?: string[];
+  onSelectionChange?: (ids: string[]) => void;
 }) {
   const [search, setSearch] = useState('');
   const matches = useMemo(
@@ -26,13 +30,21 @@ export default function RoadPicker({
     [roads, search],
   );
   const selected = roads.find((r) => r.id === selectedId);
+  const multiple = Boolean(onSelectionChange);
+  const ids = selectedIds || [];
+  function select(id: string) {
+    if (!multiple) { onSelect(id); return; }
+    if (!id) return;
+    onSelectionChange!(ids.includes(id) ? ids.filter(value => value !== id) : ids.length < 100 ? [...ids,id] : ids);
+  }
   return (
     <section className="street-picker" aria-label="Select the affected street segment">
-      <h3 className="text-lg font-bold">1. Select the affected street segment</h3>
+      <h3 className="text-lg font-bold">1. Select the affected street{multiple ? ' segments' : ' segment'}</h3>
       <p className="my-2">
-        Tap the incident location to select the nearest street, or tap a street directly. Check the highlighted segment before publishing. Only that segment will be reported.
+        {multiple ? 'Tap each affected street to add it. Tap again to remove it. All highlighted segments receive the same hazard type, severity, and details in one save (up to 100 streets).' : 'Tap the incident location to select the nearest street, or tap a street directly. Check the highlighted segment before publishing. Only that segment will be reported.'}
       </p>
-      <StreetMap roads={roads} selectedId={selectedId} onSelect={onSelect} disabled={disabled} />
+      <StreetMap roads={roads} selectedId={selectedId} selectedIds={multiple ? ids : undefined} onSelect={select} disabled={disabled} />
+      {multiple && <div className="my-3"><strong role="status">{ids.length} / 100 streets selected</strong>{' '}<button type="button" className="secondary-button" disabled={disabled || !ids.length} onClick={() => onSelectionChange!([])}>Clear selection</button></div>}
       <label className="field">
         Search street name
         <input
@@ -47,11 +59,12 @@ export default function RoadPicker({
         {matches.slice(0, 40).map((road) => (
           <label key={road.id} className="street-option">
             <input
-              type="radio"
+              type={multiple ? 'checkbox' : 'radio'}
               name="affected-street"
               value={road.id}
-              checked={selectedId === road.id}
-              onChange={() => onSelect(road.id)}
+              checked={multiple ? ids.includes(road.id) : selectedId === road.id}
+              disabled={multiple && ids.length >= 100 && !ids.includes(road.id)}
+              onChange={() => select(road.id)}
             />
             <span>
               <strong>{road.name}</strong>
@@ -70,10 +83,11 @@ export default function RoadPicker({
         </p>
       )}
       <p className="selected-street" role="status">
-        {selected
+        {multiple ? `${ids.length} street segments selected. Review the list below before publishing.` : selected
           ? `Selected: ${selected.name} · segment ${selected.source} → ${selected.target}`
           : 'No street selected yet.'}
       </p>
+      {multiple && <ul className="street-picker-options" aria-label="Selected streets">{ids.map(id => <li key={id} className="street-option"><span>{roads.find(road => road.id === id)?.name || 'Street segment'} <small>{id.slice(0,8)}</small></span><button type="button" className="secondary-button" disabled={disabled} onClick={() => select(id)} aria-label={`Remove ${roads.find(road => road.id === id)?.name || 'street'} ${id.slice(0,8)}`}>Remove</button></li>)}</ul>}
     </section>
   );
 }
