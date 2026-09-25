@@ -34,7 +34,7 @@ npm.cmd start
 ## Connect Supabase
 
 1. Create a Supabase project. Run `001_initial.sql`, then `002_street_hazards.sql` from `supabase/migrations/` in its SQL editor. Existing installs need migration 002. It creates CDRRMO-only street reports and preserves old polygon reports as an administrator-only archive.
-2. For a fresh operational database run `supabase/roads-only.sql`. It imports streets only and enables an empty operational dataset. Existing demonstration records cause this script to stop for review. `supabase/seed.sql` is only for disposable development databases, not deployment.
+2. Import the numbered street batches in [SQL Editor setup](supabase/sql-editor-setup/README.md). Skip `00-create-tables.sql` if you already applied migrations 001 and 002. These batches import streets only. Regenerate them with `npm run prepare:database`. Apply migration `003_assistance_requests.sql` once to enable assistance alerts.
 3. Copy `.env.example` to `.env.local`. Fill in your project URL and public anon key. Never put the service-role key in a `NEXT_PUBLIC_` variable. Restart/rebuild Next.js after changing these values.
 4. Create an administrator in Supabase **Authentication → Users**. Assign its UUID using the SQL editor:
 

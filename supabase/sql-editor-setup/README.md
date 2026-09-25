@@ -1,6 +1,6 @@
 # SQL Editor setup
 
-The combined file was too large. Run these files individually, in this order. Replace all editor contents between files; do not append them. Wait for success before continuing.
+Regenerate these files with `npm run prepare:database`. Run them individually, in this order. Replace all editor contents between files; do not append them. Wait for success before continuing.
 
 1. [00-create-tables.sql](00-create-tables.sql)
 2. [01-import-streets.sql](01-import-streets.sql)
@@ -13,3 +13,5 @@ The combined file was too large. Run these files individually, in this order. Re
 9. [08-import-streets.sql](08-import-streets.sql)
 
 Run the table file only once on a fresh database. Street imports preserve existing rows and may be retried. The final street file enables the operational dataset. These files contain no fictional shelters or incidents. If any file fails, stop and report the error.
+
+For assistance alerts, also apply [migration 003](../migrations/003_assistance_requests.sql) once. Existing projects should apply only missing migrations, not rerun table creation.

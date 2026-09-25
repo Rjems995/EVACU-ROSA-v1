@@ -6,10 +6,11 @@ The included graph contains 5,000 street segments in the largest connected compo
 
 The import excludes ways tagged `access=private/no` or `foot=no`, and excludes motorway/trunk/primary roads. It recognizes `oneway:foot`. Gate/node restrictions, official barangay assignments, crossings, accessibility, and field conditions still need verification. Imported streets are deliberately marked “Unassigned — verify with CDRRMO” instead of assigning invented barangays.
 
-Rebuild the fixture and a **fresh-database-only** SQL seed:
+Rebuild the JSON fixture, then regenerate the streets-only SQL batches:
 
 ```text
 node scripts/import-osm.mjs path/to/overpass-response.json
+npm run prepare:database
 ```
 
 Query used against `https://overpass-api.de/api/interpreter`:

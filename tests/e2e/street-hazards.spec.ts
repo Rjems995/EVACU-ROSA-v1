@@ -60,7 +60,6 @@ test('a late GPS callback cannot overwrite a manually selected start', async ({ 
 
 test('hazard reports are street lines and named blocked streets are visible', async ({
   page,
-  request,
 }) => {
   const data = fixtureSnapshot;
   expect(data.schemaVersion).toBe(2);

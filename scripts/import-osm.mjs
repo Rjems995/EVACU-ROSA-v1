@@ -149,40 +149,6 @@ writeFileSync(
   'src/lib/constants.ts',
   `import type { Position } from './types';\nexport const DEMO_ORIGIN: Position = ${JSON.stringify(origin)};\n`,
 );
-const quote = (value) => "'" + String(value).replaceAll("'", "''") + "'";
-const json = (value) => quote(JSON.stringify(value)) + '::jsonb';
-let sql =
-  '-- DEMONSTRATION ONLY. Apply migrations 001 and 002 first, then run on a fresh disposable database.\n-- Road geometries © OpenStreetMap contributors / ODbL 1.0. Reports and shelter sites are fictional.\n-- Source: https://www.openstreetmap.org/copyright ; OSM timestamp: ' +
-  dataset.osmTimestamp +
-  '\nbegin;\n';
-sql +=
-  'insert into public.roads(id,name,barangay,source,target,base_cost,condition,blocked,oneway,geom) values\n' +
-  connected
-    .map(
-      (r) =>
-        `(${[r.id, r.name, r.barangay, r.source, r.target].map(quote).join(',')},0,0,false,${r.oneway},${json(r.geometry)})`,
-    )
-    .join(',\n') +
-  ';\n';
-sql +=
-  'insert into public.evacuation_centers(id,name,barangay,capacity,occupancy,status,accessible,amenities,geom) values\n' +
-  shelters
-    .map(
-      (s) =>
-        `(${[s.id, s.name, s.barangay].map(quote).join(',')},${s.capacity},${s.occupancy},'open',${s.accessible},array[${s.amenities.map(quote).join(',')}],${json(s.geometry)})`,
-    )
-    .join(',\n') +
-  ';\n';
-sql +=
-  'insert into public.road_hazards(id,road_id,hazard_type,severity,blocked,active,notes) values\n' +
-  hazards
-    .map(
-      (h) =>
-        `(${[h.id, h.road_id, h.hazard_type].map(quote).join(',')},${h.severity},${h.blocked},true,${quote(h.notes)})`,
-    )
-    .join(',\n') +
-  ';\ncommit;\n';
-writeFileSync('supabase/seed.sql', sql);
 console.log(
   JSON.stringify({
     roads: connected.length,

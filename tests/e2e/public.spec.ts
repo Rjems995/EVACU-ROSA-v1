@@ -1,4 +1,4 @@
-import { expect, test, chooseFixtureLocation, fixtureSnapshot } from './fixtures';
+import { expect, test, chooseFixtureLocation } from './fixtures';
 import { createServer, request as httpRequest } from 'node:http';
 import type { AddressInfo } from 'node:net';
 

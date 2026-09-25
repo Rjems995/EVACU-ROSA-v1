@@ -1,6 +1,6 @@
 # Preparing operational spatial data
 
-The SQL seed now includes an **OSM street extract with fictional incidents and shelter sites**. It is not an approved evacuation dataset. See `src/data/README.md` for provenance, bounds, and import limitations. Apply both migrations before seeding a fresh disposable database.
+The SQL batches in `supabase/sql-editor-setup/` contain **OSM streets only**. They are not an approved evacuation dataset. See `src/data/README.md` for provenance, bounds, and import limitations. Apply migrations 001 and 002 before importing the street batches. Fictional incidents and shelters remain only in the JSON test fixture and are not exported to SQL.
 
 1. Obtain verified evacuation facilities and current capacity/status from the responsible local authority. Record a Point in WGS84/EPSG:4326 and connect the actual entrance to the road network. Confirm access and facility attributes.
 2. Obtain approved city and barangay polygons. The demo includes no boundary polygons; its boundary toggle is disabled until these are supplied. Import Polygon geometry; split MultiPolygon boundaries into separate records or extend the schema to support MultiPolygon.

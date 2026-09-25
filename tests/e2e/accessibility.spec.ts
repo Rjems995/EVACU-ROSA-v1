@@ -1,4 +1,4 @@
-import { expect, test, chooseFixtureLocation, fixtureSnapshot } from './fixtures';
+import { expect, test } from './fixtures';
 import AxeBuilder from '@axe-core/playwright';
 test('public light/dark and admin semantic and contrast checks', async ({ page }, testInfo) => {
   test.skip(

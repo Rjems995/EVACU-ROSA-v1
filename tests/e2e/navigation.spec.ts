@@ -1,4 +1,4 @@
-import { expect, test, chooseFixtureLocation, fixtureSnapshot } from './fixtures';
+import { expect, test, chooseFixtureLocation } from './fixtures';
 
 test('shelter navigation shows the route and blocked streets, then exits', async ({ page }) => {
   await page.goto('/');

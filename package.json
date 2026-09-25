@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "prepare:database": "node scripts/split-supabase-setup.mjs",
     "dev": "next dev --hostname 0.0.0.0",
     "build": "next build",
     "start": "next start --hostname 0.0.0.0",
@@ -14,9 +15,6 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.0",
-    "@turf/boolean-intersects": "^7.2.0",
-    "@turf/boolean-point-in-polygon": "^7.2.0",
-    "@turf/helpers": "^7.2.0",
     "idb": "^8.0.3",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.468.0",

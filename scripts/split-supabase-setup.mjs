@@ -4,12 +4,21 @@ mkdirSync(folder, { recursive: true });
 const first = readFileSync('supabase/migrations/001_initial.sql', 'utf8');
 const second = readFileSync('supabase/migrations/002_street_hazards.sql', 'utf8');
 writeFileSync(`${folder}/00-create-tables.sql`, `-- Run this file first, once on a fresh project.\nbegin;\n${first}\ncommit;\n${second}`);
-const source = readFileSync('supabase/roads-only.sql', 'utf8');
-const start = source.indexOf('insert into public.roads');
-const valuesStart = source.indexOf('\n', start) + 1;
-const end = source.indexOf('\non conflict', valuesStart);
-const prefix = source.slice(0, valuesStart);
-const rows = source.slice(valuesStart, end).split(',\n');
+const data = JSON.parse(readFileSync('src/data/santa-rosa-roads.json', 'utf8'));
+const quote = value => "'" + String(value).replaceAll("'", "''") + "'";
+const rows = data.roads.map(r => `(${[r.id, r.name, r.barangay, r.source, r.target].map(quote).join(',')},0,0,false,${r.oneway},${quote(JSON.stringify(r.geometry))}::jsonb)`);
+const prefix = `-- OSM streets only; no fictional shelters or incidents. Apply migrations 001 and 002 first.
+-- Geometry © OpenStreetMap contributors / ODbL. Coverage is partial and requires local validation.
+-- Run on a fresh database. Existing rows are preserved.
+begin;
+do $$ begin
+  if exists(select 1 from public.dataset_metadata where is_demo)
+    and (exists(select 1 from public.evacuation_centers) or exists(select 1 from public.road_hazards) or exists(select 1 from public.hazard_zones)) then
+    raise exception 'Existing demonstration records detected. Use a fresh project or review and remove fictional records before enabling live data.';
+  end if;
+end $$;
+insert into public.roads(id,name,barangay,source,target,base_cost,condition,blocked,oneway,geom) values
+`;
 const batches = [];
 let batch = [], size = 0;
 for (const row of rows) {
@@ -27,5 +36,5 @@ batches.forEach((batch, i) => {
   writeFileSync(`${folder}/${name}`, sql);
   files.push(name);
 });
-writeFileSync(`${folder}/README.md`, `# SQL Editor setup\n\nThe combined file was too large. Run these files individually, in this order. Replace all editor contents between files; do not append them. Wait for success before continuing.\n\n${files.map((name, i) => `${i + 1}. [${name}](${name})`).join('\n')}\n\nRun the table file only once on a fresh database. Street imports preserve existing rows and may be retried. The final street file enables the operational dataset. These files contain no fictional shelters or incidents. If any file fails, stop and report the error.\n`);
+writeFileSync(`${folder}/README.md`, `# SQL Editor setup\n\nRegenerate these files with \`npm run prepare:database\`. Run them individually, in this order. Replace all editor contents between files; do not append them. Wait for success before continuing.\n\n${files.map((name, i) => `${i + 1}. [${name}](${name})`).join('\n')}\n\nRun the table file only once on a fresh database. Street imports preserve existing rows and may be retried. The final street file enables the operational dataset. These files contain no fictional shelters or incidents. If any file fails, stop and report the error.\n\nFor assistance alerts, also apply [migration 003](../migrations/003_assistance_requests.sql) once. Existing projects should apply only missing migrations, not rerun table creation.\n`);
 console.log(JSON.stringify({ files, roads: rows.length, batches: batches.length }));

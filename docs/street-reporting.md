@@ -16,6 +16,6 @@ The report references an existing road ID. Its map geometry is always derived fr
 
 Apply `supabase/migrations/002_street_hazards.sql` after migration 001. This preserves existing `hazard_zones` polygons as a read-only city-admin archive, creates `road_hazards`, and upgrades the public snapshot RPC. Existing polygons are **not automatically converted to street closures**; CDRRMO must identify the affected streets.
 
-New installs must apply both migrations before running `supabase/seed.sql`. The seed is for a fresh disposable demonstration database, not for replacing live records. OSM streets require official topology/access/barangay review before live use.
+New installs must apply both migrations before importing the numbered street batches in `supabase/sql-editor-setup/`. These contain no fictional incidents or shelters. OSM streets require official topology/access/barangay review before live use.
 
 Public snapshots use `schemaVersion: 2`. Cached snapshots from the old polygon model are rejected, so reconnect at least once after upgrading to populate the new offline cache. Live Supabase execution and authenticated operations still require integration testing against your own project.
