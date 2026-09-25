@@ -33,7 +33,7 @@ async function authenticate(request: Request, context: Context) {
     .select('*')
     .eq('user_id', user.id)
     .single();
-  if (!account || (resource === 'admin_accounts' && account.role !== 'citywide'))
+  if (!account || (['admin_accounts', 'assistance_requests'].includes(resource) && account.role !== 'citywide'))
     return {
       response: Response.json({ error: 'This account does not have permission.' }, { status: 403 }),
     };
@@ -45,15 +45,18 @@ export async function GET(request: Request, context: Context) {
   let query = auth.db!.from(auth.resource!).select('*').limit(1000);
   if (auth.account!.role === 'barangay') query = query.eq('barangay', auth.account!.barangay);
   if (auth.resource === 'incident_logs') query = query.order('created_at', { ascending: false });
+  if (auth.resource === 'assistance_requests') query = query.order('created_at', { ascending: false });
   const { data, error } = await query;
   return error
     ? Response.json({ error: 'Records could not be loaded.' }, { status: 500 })
-    : Response.json(data);
+    : Response.json(data, {headers:{'Cache-Control':'no-store'}});
 }
 async function mutate(request: Request, context: Context, method: 'POST' | 'PATCH' | 'DELETE') {
   const auth = await authenticate(request, context);
   if (auth.response) return auth.response;
   const { db, resource, account } = auth;
+  if (resource === 'assistance_requests' && method !== 'PATCH')
+    return Response.json({error:'Only assistance status updates are allowed here.'}, {status:405});
   if (resource === 'road_hazards' && account!.role !== 'citywide')
     return Response.json({ error: 'Only CDRRMO / citywide administrators can publish street hazard reports.' }, { status: 403 });
   if (resource === 'incident_logs')

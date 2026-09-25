@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Check, LogOut, Plus, ShieldCheck, Trash2, Waves, Flame, Mountain } from 'lucide-react';
 import { configured, supabase } from '@/lib/supabase';
 import RoadPicker from '@/components/road-picker';
+import AssistanceInbox from '@/components/assistance-inbox';
 import type { Road, Snapshot } from '@/lib/types';
 type RecordData = Record<string, unknown>;
 const ShelterLocationPicker = dynamic(() => import('@/components/shelter-location-picker'), {
@@ -391,6 +392,7 @@ export default function AdminPage() {
                 </button>
               ))}
             </nav>
+            {token && role === 'citywide' && <AssistanceInbox token={token} />}
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="text-xl font-bold">
                 {labels[resource]}{' '}

@@ -10,6 +10,7 @@ const common = {
   barangay: z.string().trim().min(2).max(80),
 };
 export const schemas = {
+  assistance_requests: z.object({status: z.enum(['new', 'acknowledged', 'resolved'])}).strict(),
   evacuation_centers: z
     .object({
       ...common,
@@ -53,3 +54,8 @@ export const schemas = {
     ),
 };
 export const routeInput = z.object({ origin: coordinate, accessibleOnly: z.boolean().optional() });
+export const assistanceInput = z.object({
+  id: z.uuid(), origin: coordinate, source: z.enum(['gps','selected']),
+  details: z.string().trim().max(500), contact: z.string().trim().max(120),
+  consent: z.literal(true),
+}).strict();

@@ -34,6 +34,7 @@ import {
 import { DEMO_ORIGIN } from '@/lib/constants';
 import { rankShelters, segmentRisk, shelterStatus } from '@/lib/routing';
 import { useSnapshot } from '@/lib/use-snapshot';
+import AssistanceRequest from './assistance-request';
 import type { HazardType, Position, RankedShelter, Shelter } from '@/lib/types';
 const Map = dynamic(() => import('./map'), {
   ssr: false,
@@ -382,6 +383,7 @@ export default function PublicApp() {
                 <ShieldCheck size={14} /> Routes consider all active hazards
               </p>
               <CoordinateEntry onChoose={choose} />
+              {origin && <AssistanceRequest key={origin.join(',')} origin={origin} source={locationName === 'Your current location' ? 'gps' : 'selected'} noRoute={requested && inCoverage && !ranked.length && Boolean(snapshot?.shelters.length)} enabled={Boolean(snapshot && !snapshot.demo && !snapshot.setupRequired)} />}
             </section>
             <section className="results-section" id="shelter-list">
               <div

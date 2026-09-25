@@ -10,7 +10,7 @@ vi.mock('@/lib/supabase', () => ({
       }),
     },
     from: (table: string) => {
-      if (table === 'road_hazards')
+      if (table === 'road_hazards' || table === 'assistance_requests')
         return {
           insert: (payload: unknown) => {
             state.payload = payload;
@@ -90,6 +90,21 @@ it('lets CDRRMO clear an existing incident without deleting its history', async 
   }), {params:Promise.resolve({resource:'road_hazards'})});
   expect(response.status).toBe(200);
   expect(state.payload).toEqual({...report, active:false});
+});
+it('denies private assistance status access to barangay admins', async () => {
+  state.role = 'barangay';
+  const response = await PATCH(new Request('http://localhost/api/admin/assistance_requests?id=44444444-4444-4444-8444-444444444444', {
+    method:'PATCH',headers:{Authorization:'Bearer test-token'},body:JSON.stringify({status:'acknowledged'}),
+  }), {params:Promise.resolve({resource:'assistance_requests'})});
+  expect(response.status).toBe(403);
+  expect(state.payload).toBeNull();
+});
+it('allows CDRRMO to acknowledge assistance without modifying the reported location', async () => {
+  const response = await PATCH(new Request('http://localhost/api/admin/assistance_requests?id=44444444-4444-4444-8444-444444444444', {
+    method:'PATCH',headers:{Authorization:'Bearer test-token'},body:JSON.stringify({status:'acknowledged'}),
+  }), {params:Promise.resolve({resource:'assistance_requests'})});
+  expect(response.status).toBe(200);
+  expect(state.payload).toEqual({status:'acknowledged'});
 });
 it('rejects missing road records and forged polygons', async () => {
   state.roadExists = false;
