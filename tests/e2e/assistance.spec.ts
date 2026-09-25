@@ -1,4 +1,7 @@
 import {test,expect,chooseFixtureLocation,fixtureSnapshot} from './fixtures';
+// Service-worker-controlled requests can bypass Playwright route mocks in WebKit.
+// Offline/service-worker behavior is covered separately in public.spec.ts.
+test.use({serviceWorkers:'block'});
 test.beforeEach(async({page})=>{
   await page.route('**/api/snapshot', route=>route.fulfill({json:{...fixtureSnapshot,shelters:fixtureSnapshot.shelters.map(s=>({...s,status:'closed'}))}}));
 });

@@ -45,10 +45,10 @@ test('public route flow, filters, theme and responsive layout', async ({ page })
   );
 });
 test('cached snapshot survives offline reload', async ({ page, context, browserName }) => {
-  // WebKit offline emulation rejects even literal service-worker responses:
+  // Firefox/WebKit offline emulation can reject service-worker navigation:
   // https://github.com/microsoft/playwright/issues/42775
   // A real origin outage verifies the same cache fallback without hiding a reload failure.
-  const proxy = browserName === 'webkit' ? await outageProxy() : null;
+  const proxy = browserName !== 'chromium' ? await outageProxy() : null;
   try {
     await page.goto(proxy ? proxy.url : '/');
     await expect(page.locator('.leaflet-container')).toBeVisible();

@@ -6,8 +6,9 @@ test('CDRRMO selects several streets, removes one, and publishes a single batch'
   const user={id:'11111111-1111-4111-8111-111111111111',aud:'authenticated',role:'authenticated',email:'test@example.invalid'};
   const expires=Math.floor(Date.now()/1000)+3600;
   const token=`${Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toString('base64url')}.${Buffer.from(JSON.stringify({sub:user.id,exp:expires,role:'authenticated'})).toString('base64url')}.test-signature`;
-  const env=readFileSync('.env.local','utf8');
-  const url=env.match(/^NEXT_PUBLIC_SUPABASE_URL=(.+)$/m)?.[1].trim();
+  // CI provides a fake project URL for this separately built, fully mocked test.
+  // Never depend on a developer's local credentials.
+  const url=process.env.NEXT_PUBLIC_SUPABASE_URL;
   test.skip(!url,'This test mocks a configured Supabase browser session.');
   const key=`sb-${new URL(url!).hostname.split('.')[0]}-auth-token`;
   await page.addInitScript(({key,session})=>localStorage.setItem(key,JSON.stringify(session)), {key,session:{access_token:token,refresh_token:'test-refresh',expires_at:expires,expires_in:3600,token_type:'bearer',user}});

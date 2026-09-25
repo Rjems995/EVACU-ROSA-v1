@@ -1,5 +1,15 @@
 # Verification record
 
+## CI fixes verified 2026-09-25
+
+Reproduced the CI browser setup locally on Windows with real Supabase credentials excluded from the test processes. Public suite: **71 passed, 9 intentional skips** (five admin tests run separately and four duplicate accessibility audits). A second build with a fake Supabase URL/key then passed all **five** mocked admin batch tests across Chromium, Firefox, WebKit, Pixel 7, and iPhone 13 emulation. No live database writes were performed. GitHub's Ubuntu workflow still needs to run after pushing these changes.
+
+The admin batch test now reads explicitly supplied environment variables, not `.env.local`. The workflow builds an unconfigured public app and a separate mocked admin app. Assistance tests block service workers so WebKit cannot bypass their request mocks, following [Playwright's network-testing guidance](https://playwright.dev/docs/network). Offline tests still enable service workers: Chromium uses offline emulation, while Firefox/WebKit stop a temporary origin proxy and verify cached reload and routing with the server genuinely unavailable.
+
+Workflow actions were updated to Node-24-compatible releases and the runner is pinned to Ubuntu 24.04. The app itself continues to use Node 22. Public tests reuse the already-built app instead of repeating the same build.
+
+## Earlier verification
+
 Executed locally on Windows on 2026-09-24 with Node.js **22.23.3**, npm **10.9.9**, and the dependency versions recorded in `package-lock.json`.
 
 | Check | Result |
