@@ -23,8 +23,8 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://ci-test.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-public-test-key
-      - name: Admin batch browser checks (mocked requests)
-        run: npx playwright test tests/e2e/batch-hazards.spec.ts
+      - name: Admin browser checks (mocked requests)
+        run: npx playwright test tests/e2e/batch-hazards.spec.ts tests/e2e/shelter-admin.spec.ts
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://ci-test.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-public-test-key

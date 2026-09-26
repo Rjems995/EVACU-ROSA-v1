@@ -1,4 +1,19 @@
-# Santa Rosa sample street network
+# Santa Rosa street datasets
+
+`santa-rosa-city-roads.json` is the streets-only public fallback, with 10,946 segments (5,000 preserved legacy segments plus 5,946 additions). It includes no shelters or incident reports. The city-area query uses OpenStreetMap relation 1335521; disconnected components are retained. Shared OSM node IDs, rather than intersecting lines, identify junctions. See [the upgrade guide](../../docs/city-shelter-language-upgrade.md) for access filters and limitations.
+
+Reproduce the city upgrade using `node scripts/expand-city-roads.mjs <city-overpass.json>`. The committed city JSON preserves the original node-ID mapping; for first-time generation without it, supply the original extract as a second argument. Use this city query:
+
+```text
+[out:json][timeout:180];
+area(3601335521)->.city;
+way["highway"](area.city);
+out body; >; out skel qt;
+```
+
+Data © OpenStreetMap contributors, [ODbL 1.0](https://www.openstreetmap.org/copyright). OSM source timestamp: 2026-09-25T10:09:57Z. Local verification remains necessary.
+
+## Original test fixture
 
 `santa-rosa-roads.json` contains an OpenStreetMap-derived road graph and explicitly fictional shelter/incident fixtures. Geometry and names are **© OpenStreetMap contributors**, distributed under **ODbL 1.0**: https://www.openstreetmap.org/copyright and https://opendatacommons.org/licenses/odbl/1-0/ . The JSON records the source timestamp and query bounding box.
 

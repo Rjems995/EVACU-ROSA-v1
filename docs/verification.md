@@ -1,5 +1,17 @@
 # Verification record
 
+## City, shelter and language upgrade — 2026-09-26
+
+- Production builds and TypeScript compilation passed with both unconfigured and mocked-project settings; the normal project build is restored after testing.
+- **43 unit tests passed**, including preservation of all 5,000 original street geometries/IDs, internal OSM junctions, blocked segments, foot directionality, paused shelters and supply validation.
+- Public route, language persistence, shelter status, assistance consent and navigation checks passed on desktop Chromium/Firefox/WebKit and Pixel 7/iPhone 13 browser profiles over targeted runs. The new language test checks against actual viewport width, avoiding a false pass when mobile browsers expand the layout viewport.
+- Mobile testing exposed two layout problems that were fixed: the location message covered coordinate entry, and the language selector widened the header. Messages now sit in the location section and the phone header wraps.
+- Offline and hazard-map checks passed on Firefox and iPhone after reruns with longer **local-only** timing limits on a loaded workstation. CI timeout settings were not relaxed. Earlier default-timeout runs had startup/map-loading timeouts; this is not a single clean full-suite result.
+- **10 mocked admin tests passed** across all five profiles: batch street hazards and barangay shelter updates, including clearing entrance verification when moving the pin. No live reports, alerts or shelters were written.
+- Browser fixtures now serve test snapshots directly and block external map tiles. The offline test removes the snapshot mock before disconnecting or stopping its origin proxy, so it still verifies genuine cached recovery.
+
+Migration 004 and the 21 additive road batches were prepared but **not executed against Supabase**. Live database migration/RLS integration and local road/entrance validation remain external checks. See [the upgrade guide](city-shelter-language-upgrade.md).
+
 ## CI fixes verified 2026-09-25
 
 Reproduced the CI browser setup locally on Windows with real Supabase credentials excluded from the test processes. Public suite: **71 passed, 9 intentional skips** (five admin tests run separately and four duplicate accessibility audits). A second build with a fake Supabase URL/key then passed all **five** mocked admin batch tests across Chromium, Firefox, WebKit, Pixel 7, and iPhone 13 emulation. No live database writes were performed. GitHub's Ubuntu workflow still needs to run after pushing these changes.

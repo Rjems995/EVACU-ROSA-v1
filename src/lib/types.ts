@@ -6,10 +6,16 @@ export type Shelter = {
   barangay: string;
   capacity: number;
   occupancy: number;
-  status: 'open' | 'closed';
+  status: 'open' | 'closed' | 'paused';
   accessible: boolean;
   amenities: string[];
   geometry: Point;
+  entrance_verified?: boolean;
+  water_status?: 'unknown' | 'adequate' | 'low' | 'unavailable';
+  food_status?: 'unknown' | 'adequate' | 'low' | 'unavailable';
+  medical_status?: 'unknown' | 'adequate' | 'low' | 'unavailable';
+  operational_notes?: string;
+  updated_at?: string;
 };
 export type Road = {
   id: string;
@@ -23,6 +29,7 @@ export type Road = {
   oneway: boolean;
   geometry: LineString;
   osm_way_id?: string;
+  node_ids?: string[];
 };
 export type Hazard = {
   id: string;

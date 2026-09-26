@@ -1,6 +1,8 @@
 'use client';
+import { useLanguage, LanguageToggle } from './language-provider';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
+import BrandLogo from '@/components/brand-logo';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight,
@@ -35,6 +37,7 @@ import { DEMO_ORIGIN } from '@/lib/constants';
 import { rankShelters, segmentRisk, shelterStatus } from '@/lib/routing';
 import { useSnapshot } from '@/lib/use-snapshot';
 import AssistanceRequest from './assistance-request';
+import ShelterOperations from './shelter-operations';
 import type { HazardType, Position, RankedShelter, Shelter } from '@/lib/types';
 const Map = dynamic(() => import('./map'), {
   ssr: false,
@@ -47,6 +50,7 @@ const Map = dynamic(() => import('./map'), {
 });
 const hazardIcons = { flood: Waves, fire: Flame, earthquake: Mountain };
 export default function PublicApp() {
+  const { t, language } = useLanguage();
   const { snapshot, offline, cached, loading, error, storageError, sync } = useSnapshot();
   const [origin, setOrigin] = useState<Position | null>(null),
     [locationName, setLocationName] = useState('Choose your starting point');
@@ -95,11 +99,17 @@ export default function PublicApp() {
   }, [dark]);
   const inCoverage = useMemo(() => {
     if (!snapshot || !origin) return false;
-    let west = Infinity, east = -Infinity, south = Infinity, north = -Infinity;
-    for (const road of snapshot.roads) for (const [lng, lat] of road.geometry.coordinates) {
-      west = Math.min(west, lng); east = Math.max(east, lng);
-      south = Math.min(south, lat); north = Math.max(north, lat);
-    }
+    let west = Infinity,
+      east = -Infinity,
+      south = Infinity,
+      north = -Infinity;
+    for (const road of snapshot.roads)
+      for (const [lng, lat] of road.geometry.coordinates) {
+        west = Math.min(west, lng);
+        east = Math.max(east, lng);
+        south = Math.min(south, lat);
+        north = Math.max(north, lat);
+      }
     return origin[0] >= west && origin[0] <= east && origin[1] >= south && origin[1] <= north;
   }, [snapshot, origin]);
   const ranked = useMemo(
@@ -183,7 +193,9 @@ export default function PublicApp() {
       return;
     }
     if (!inCoverage) {
-      setNotice('Your starting point is outside the loaded Santa Rosa road coverage. Choose a point inside the mapped area.');
+      setNotice(
+        'Your starting point is outside the loaded Santa Rosa road coverage. Choose a point inside the mapped area.',
+      );
       setRequested(false);
       return;
     }
@@ -216,9 +228,7 @@ export default function PublicApp() {
     <>
       <header className="topbar">
         <Link href="/" className="brand" aria-label="EVACU-ROSA home">
-          <span className="brand-symbol">
-            <ShieldCheck size={27} />
-          </span>
+          <BrandLogo />
           <span>
             EVACU<span className="brand-accent">-ROSA</span>
             <small>SANTA ROSA CITY · LAGUNA</small>
@@ -227,7 +237,7 @@ export default function PublicApp() {
         <nav aria-label="Main navigation" className="desktop-nav">
           <a href="#main" className="nav-active">
             <Navigation size={17} />
-            Evacuation map
+            {t('Evacuation map')}{' '}
           </a>
           <button
             onClick={() => {
@@ -238,20 +248,21 @@ export default function PublicApp() {
             }}
           >
             <House size={17} />
-            Shelters
+            {t('Shelters')}{' '}
           </button>
           <button onClick={() => setHelp(true)}>
             <Info size={17} />
-            How it works
+            {t('How it works')}{' '}
           </button>
         </nav>
         <div className="header-actions">
+          <LanguageToggle />
           <span className="city-chip">
             <MapPin size={14} /> Santa Rosa, PH
           </span>
           <button
             className="icon-button"
-            aria-label={dark ? 'Use light theme' : 'Use dark theme'}
+            aria-label={dark ? t('Use light theme') : t('Use dark theme')}
             onClick={() => setDark(!dark)}
           >
             {dark ? <Sun size={19} /> : <Moon size={19} />}
@@ -264,32 +275,38 @@ export default function PublicApp() {
       <div className="system-bar">
         <span>
           <span className="status-dot" />
-          {snapshot?.demo ? 'DEMONSTRATION MODE' : 'EVACUATION SUPPORT'}
+          {snapshot?.demo ? 'DEMONSTRATION MODE' : t('EVACUATION SUPPORT')}
           <span className="system-divider">/</span>
-          <span className="system-message">Prepared together. Safer together.</span>
+          <span className="system-message">{t('Prepared together. Safer together.')} </span>
         </span>
         <span>
           {offline ? <WifiOff size={14} /> : <Wifi size={14} />}{' '}
           {offline
-            ? 'Offline'
+            ? t('Offline')
             : cached
-              ? 'Saved data'
+              ? t('Saved data')
               : snapshot?.demo
                 ? 'Sample data'
-                : snapshot?.setupRequired ? 'Awaiting CDRRMO setup' : 'Connected'}
+                : snapshot?.setupRequired
+                  ? t('Awaiting CDRRMO setup')
+                  : t('Connected')}
         </span>
       </div>
       <main id="main" className="app-main">
         <section className="page-heading" aria-labelledby="page-title">
           <div>
-            <p className="eyebrow">YOUR WAY TO SAFETY</p>
+            <p className="eyebrow">{t('YOUR WAY TO SAFETY')} </p>
             <h1 id="page-title">
-              A safer route starts here<span>.</span>
+              {t('A safer route starts here')} <span>.</span>
             </h1>
-            <p>Find an available shelter and a route that considers the hazards around you.</p>
+            <p>
+              {t(
+                'Find an available shelter and a route that considers the hazards around you.',
+              )}{' '}
+            </p>
           </div>
           <button className="help-button" onClick={() => setHelp(true)}>
-            <Phone size={17} /> Emergency help <ChevronRight size={16} />
+            <Phone size={17} /> {t('Emergency help')} <ChevronRight size={16} />
           </button>
         </section>
         {snapshot?.demo && (
@@ -305,8 +322,14 @@ export default function PublicApp() {
         {snapshot?.setupRequired && (
           <aside className="offline-banner" role="status">
             <Info size={20} />
-            <p>CDRRMO reports and verified shelters are not available yet. Street maps remain available; no evacuation routes can be generated until shelters are published.</p>
-            <Link href="/admin" className="text-button">CDRRMO panel</Link>
+            <p>
+              {t(
+                'CDRRMO reports and verified shelters are not available yet. Street maps remain available; no evacuation routes can be generated until shelters are published.',
+              )}{' '}
+            </p>
+            <Link href="/admin" className="text-button">
+              {t('CDRRMO panel')}{' '}
+            </Link>
           </aside>
         )}
         {(offline || cached || (!snapshot?.demo && age > 15)) && (
@@ -315,43 +338,46 @@ export default function PublicApp() {
             <span>
               <strong>
                 {offline
-                  ? 'You’re offline.'
+                  ? t('You’re offline.')
                   : cached
-                    ? 'Live updates unavailable.'
-                    : 'Data may be out of date.'}
+                    ? t('Live updates unavailable.')
+                    : t('Data may be out of date.')}
               </strong>{' '}
               {snapshot
-                ? `Showing last updated data — ${age.toLocaleString()} minutes ago.`
-                : 'No saved data is available yet.'}{' '}
-              Map tiles may be unavailable.
+                ? language === 'fil'
+                  ? `Huling datos — ${age.toLocaleString()} minuto na ang nakalipas.`
+                  : `Showing last updated data — ${age.toLocaleString()} minutes ago.`
+                : t('No saved data is available yet.')}{' '}
+              {t('Map tiles may be unavailable.')}{' '}
             </span>
             <button onClick={() => void sync()} className="text-button">
               <RefreshCw size={16} />
-              Retry
+              {t('Retry')}{' '}
             </button>
           </aside>
         )}
         {storageError && (
           <p className="inline-warning" role="status">
-            Offline storage is unavailable in this browser. Keep this page open to retain the
-            current view.
+            {t(
+              'Offline storage is unavailable in this browser. Keep this page open to retain the current view.',
+            )}{' '}
           </p>
         )}
         <section className="workspace" aria-label="Shelter finder">
           <aside className="finder-panel">
             <section className="start-section">
               <div className="section-kicker">
-                <span className="step-dot">1</span> YOUR STARTING POINT
+                <span className="step-dot">1</span> {t('YOUR STARTING POINT')}{' '}
               </div>
-              <h2>Where are you now?</h2>
+              <h2>{t('Where are you now?')} </h2>
               <button className="location-field" onClick={() => setPicking(!picking)}>
                 <MapPin size={20} />
                 <span>
-                  {locating ? 'Finding your current location…' : locationName}
+                  {locating ? t('Finding your current location…') : t(locationName)}
                   <small>
                     {origin
                       ? `${origin[1].toFixed(4)}° N, ${origin[0].toFixed(4)}° E`
-                      : 'Select a location on the map'}
+                      : t('Select a location on the map')}
                   </small>
                 </span>
                 <ChevronDown size={17} />
@@ -359,7 +385,7 @@ export default function PublicApp() {
               <div className="location-actions">
                 <button className="text-button" onClick={locate} disabled={locating}>
                   <LocateFixed size={16} />
-                  {locating ? 'Finding location…' : 'Use my location'}
+                  {locating ? t('Finding location…') : t('Use my location')}
                 </button>
                 {snapshot?.demo && (
                   <button
@@ -376,14 +402,41 @@ export default function PublicApp() {
                 disabled={loading || !snapshot}
               >
                 <Navigation size={20} />
-                Find Shelter Now
-                <ArrowRight size={19} />
+                {t('Find Shelter Now')} <ArrowRight size={19} />
               </button>
-              <p className="routing-note">
-                <ShieldCheck size={14} /> Routes consider all active hazards
+              <p className="emergency-instruction">
+                {language === 'fil'
+                  ? '1. Piliin ang lokasyon mo. 2. Humanap ng masisilungan. 3. Buksan ang gabay sa mapa.'
+                  : '1. Set your location. 2. Find a shelter. 3. Open navigation.'}
               </p>
+              <p className="routing-note">
+                <ShieldCheck size={14} /> {t('Routes consider all active hazards')}{' '}
+              </p>
+              {notice && (
+                <div className="notice location-notice" role="status">
+                  <Info size={20} />
+                  <p>{t(notice)}</p>
+                  <button
+                    className="icon-button"
+                    aria-label={t('Dismiss message')}
+                    onClick={() => setNotice('')}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+              )}
               <CoordinateEntry onChoose={choose} />
-              {origin && <AssistanceRequest key={origin.join(',')} origin={origin} source={locationName === 'Your current location' ? 'gps' : 'selected'} noRoute={requested && inCoverage && !ranked.length && Boolean(snapshot?.shelters.length)} enabled={Boolean(snapshot && !snapshot.demo && !snapshot.setupRequired)} />}
+              {origin && (
+                <AssistanceRequest
+                  key={origin.join(',')}
+                  origin={origin}
+                  source={locationName === 'Your current location' ? 'gps' : 'selected'}
+                  noRoute={
+                    requested && inCoverage && !ranked.length && Boolean(snapshot?.shelters.length)
+                  }
+                  enabled={Boolean(snapshot && !snapshot.demo && !snapshot.setupRequired)}
+                />
+              )}
             </section>
             <section className="results-section" id="shelter-list">
               <div
@@ -414,7 +467,7 @@ export default function PublicApp() {
                   aria-controls="shelters-panel"
                 >
                   <House size={16} />
-                  Shelters <span>{shelterList.length}</span>
+                  {t('Shelters')} <span>{shelterList.length}</span>
                 </button>
                 <button
                   role="tab"
@@ -425,20 +478,20 @@ export default function PublicApp() {
                   aria-controls="alerts-panel"
                 >
                   <TriangleAlert size={16} />
-                  Hazards <span>{activeHazards.length}</span>
+                  {t('Hazards')} <span>{activeHazards.length}</span>
                 </button>
               </div>
               {tab === 'shelters' ? (
                 <div role="tabpanel" id="shelters-panel" aria-labelledby="shelters-tab">
                   <div className="results-heading">
-                    <h3>{origin ? 'Recommended shelters' : 'Nearby shelters'}</h3>
-                    <span>{origin ? 'Risk + distance' : 'Select a start to rank'}</span>
+                    <h3>{origin ? t('Recommended shelters') : t('Nearby shelters')}</h3>
+                    <span>{origin ? t('Risk + distance') : t('Select a start to rank')}</span>
                   </div>
                   <label className="search-field">
                     <Search size={16} />
                     <input
-                      aria-label="Search shelters or barangays"
-                      placeholder="Search shelter or barangay"
+                      aria-label={t('Search shelters or barangays')}
+                      placeholder={t('Search shelter or barangay')}
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
                     />
@@ -449,11 +502,11 @@ export default function PublicApp() {
                       checked={accessible}
                       onChange={(e) => setAccessible(e.target.checked)}
                     />
-                    Step-free shelter access only
+                    {t('Step-free shelter access only')}{' '}
                   </label>
                   <div className="shelter-cards">
                     {loading ? (
-                      <p className="empty-state">Loading shelter information…</p>
+                      <p className="empty-state">{t('Loading shelter information…')} </p>
                     ) : shelterList.length ? (
                       shelterList.map((s) => (
                         <ShelterCard
@@ -469,10 +522,14 @@ export default function PublicApp() {
                     ) : (
                       <p className="empty-state">
                         {error && !snapshot
-                          ? 'Unable to load shelters. Reconnect and try again.'
+                          ? t('Unable to load shelters. Reconnect and try again.')
                           : origin
-                            ? 'No matching reachable shelters. Change the starting point or filters.'
-                            : snapshot?.setupRequired ? 'Waiting for CDRRMO to publish verified shelters.' : 'No shelters match your search.'}
+                            ? t(
+                                'No matching reachable shelters. Change the starting point or filters.',
+                              )
+                            : snapshot?.setupRequired
+                              ? t('Waiting for CDRRMO to publish verified shelters.')
+                              : t('No shelters match your search.')}
                       </p>
                     )}
                   </div>
@@ -484,9 +541,15 @@ export default function PublicApp() {
                   aria-labelledby="alerts-tab"
                   className="hazard-list"
                 >
-                  <h3>Reported street hazards</h3>
-                  <p>Hidden map layers still affect routing.</p>
-                  {!activeHazards.length && <p>No active street reports have been published. This does not confirm that streets are safe.</p>}
+                  <h3>{t('Reported street hazards')}</h3>
+                  <p>{t('Hidden map layers still affect routing.')}</p>
+                  {!activeHazards.length && (
+                    <p>
+                      {t(
+                        'No active street reports have been published. This does not confirm that streets are safe.',
+                      )}
+                    </p>
+                  )}
                   {activeHazards.map((h) => {
                     const Icon = hazardIcons[h.hazard_type];
                     const road = snapshot?.roads.find((r) => r.id === h.road_id);
@@ -495,7 +558,7 @@ export default function PublicApp() {
                       <article key={h.id} className="hazard-card">
                         <Icon size={22} />
                         <div>
-                          <span className="hazard-kind">{h.hazard_type}</span>
+                          <span className="hazard-kind">{t(h.hazard_type)}</span>
                           <h4>{h.name}</h4>
                           <p>
                             {h.barangay} · {Math.round(h.severity * 100)}% severity
@@ -509,7 +572,7 @@ export default function PublicApp() {
                         </div>
                         <span className={`badge ${blocked ? 'badge-danger' : 'badge-amber'}`}>
                           <TriangleAlert size={12} />
-                          {blocked ? 'Blocked street' : 'Affected street'}
+                          {blocked ? t('Blocked street') : t('Affected street')}
                         </span>
                       </article>
                     );
@@ -519,15 +582,27 @@ export default function PublicApp() {
             </section>
             <footer className="panel-footer">
               <ShieldCheck size={15} />
-              <span>Risk-aware guidance. Stay aware of your surroundings.</span>
+              <span>{t('Risk-aware guidance. Stay aware of your surroundings.')} </span>
             </footer>
           </aside>
-          <section className={`map-panel ${navigating && activeRoute ? 'navigation-view' : ''}`} aria-label="Map and route information">
+          <section
+            className={`map-panel ${navigating && activeRoute ? 'navigation-view' : ''}`}
+            aria-label="Map and route information"
+          >
             {navigating && activeRoute && (
               <div className="navigation-heading">
                 <Navigation size={28} aria-hidden="true" />
-                <div><small>{snapshot?.demo ? 'SAMPLE WALKING ROUTE' : 'WALKING ROUTE'}</small><h2>{activeRoute.shelter.name}</h2><p>Santa Rosa · {activeRoute.route.minutes} min · {(activeRoute.route.distance / 1000).toFixed(1)} km</p></div>
-                <button autoFocus className="secondary-button" onClick={() => setNavigating(false)}>Exit navigation</button>
+                <div>
+                  <small>{snapshot?.demo ? 'SAMPLE WALKING ROUTE' : t('WALKING ROUTE')}</small>
+                  <h2>{activeRoute.shelter.name}</h2>
+                  <p>
+                    Santa Rosa · {activeRoute.route.minutes} min ·{' '}
+                    {(activeRoute.route.distance / 1000).toFixed(1)} km
+                  </p>
+                </div>
+                <button autoFocus className="secondary-button" onClick={() => setNavigating(false)}>
+                  {t('Exit navigation')}{' '}
+                </button>
               </div>
             )}
             <div className="map-toolbar">
@@ -541,14 +616,14 @@ export default function PublicApp() {
                 disabled={!snapshot?.boundaries.length}
                 title={
                   snapshot?.boundaries.length
-                    ? 'Show official boundaries'
-                    : 'No verified boundary dataset is loaded'
+                    ? t('Show official boundaries')
+                    : t('No verified boundary dataset is loaded')
                 }
                 aria-pressed={boundaries}
                 onClick={() => setBoundaries(!boundaries)}
               >
                 <Layers size={16} />
-                <span>Boundaries</span>
+                <span>{t('Boundaries')} </span>
               </button>
             </div>
             <div className="map-stage">
@@ -568,15 +643,19 @@ export default function PublicApp() {
               ) : (
                 <div className="map-loading">
                   <Navigation size={32} />
-                  <p>{loading ? 'Preparing your map…' : 'Map data unavailable'}</p>
+                  <p>{loading ? t('Preparing your map…') : t('Map data unavailable')}</p>
                   {!loading && (
                     <button className="secondary-button" onClick={() => void sync()}>
-                      Try again
+                      {t('Try again')}{' '}
                     </button>
                   )}
                 </div>
               )}
-              <div className="map-hazard-controls" aria-label="Hazard map layers" hidden={navigating}>
+              <div
+                className="map-hazard-controls"
+                aria-label="Hazard map layers"
+                hidden={navigating}
+              >
                 {(['flood', 'fire', 'earthquake'] as HazardType[]).map((type) => {
                   const Icon = hazardIcons[type];
                   return (
@@ -590,7 +669,7 @@ export default function PublicApp() {
                       }
                     >
                       <Icon size={16} />
-                      <span>{type}</span>
+                      <span>{t(type)}</span>
                       {visible.includes(type) && <Check size={13} />}
                     </button>
                   );
@@ -599,10 +678,10 @@ export default function PublicApp() {
               {picking && (
                 <div className="map-pick-banner" role="status">
                   <MapPin size={18} />
-                  Tap the map to set your starting point
+                  {t('Tap the map to set your starting point')}{' '}
                   <button
                     className="icon-button"
-                    aria-label="Cancel location selection"
+                    aria-label={t('Cancel location selection')}
                     onClick={() => setPicking(false)}
                   >
                     <X size={16} />
@@ -615,27 +694,27 @@ export default function PublicApp() {
                     <Navigation size={22} />
                   </span>
                   <div>
-                    <strong>Your safety. A clear direction.</strong>
-                    <p>Choose your location to see routes to available shelters.</p>
+                    <strong>{t('Your safety. A clear direction.')} </strong>
+                    <p>{t('Choose your location to see routes to available shelters.')} </p>
                   </div>
                 </div>
               )}
               <div className="map-legend">
                 <span>
                   <House size={14} className="legend-shelter" aria-hidden="true" />
-                  Shelter
+                  {t('Shelter')}{' '}
                 </span>
                 <span>
                   <i className="legend-route" />
-                  {navigating ? 'Walking route' : 'Lower-risk route'}
+                  {navigating ? t('Walking route') : t('Lower-risk route')}
                 </span>
                 <span>
                   <i className="legend-hazard" />
-                  Blocked street
+                  {t('Blocked street')}{' '}
                 </span>
                 <span>
                   <i className="legend-affected" />
-                  Affected street
+                  {t('Affected street')}{' '}
                 </span>
               </div>
             </div>
@@ -646,13 +725,16 @@ export default function PublicApp() {
                     <RouteIcon size={22} />
                   </span>
                   <div>
-                    <p>{snapshot?.demo ? 'SAMPLE ROUTE' : 'SUGGESTED ROUTE'}</p>
+                    <p>{snapshot?.demo ? 'SAMPLE ROUTE' : t('SUGGESTED ROUTE')}</p>
                     <h3>{activeRoute.shelter.name}</h3>
                   </div>
                   <button
                     className="icon-button"
-                    aria-label="Clear route"
-                    onClick={() => { setRequested(false); setNavigating(false); }}
+                    aria-label={t('Clear route')}
+                    onClick={() => {
+                      setRequested(false);
+                      setNavigating(false);
+                    }}
                   >
                     <X size={19} />
                   </button>
@@ -661,53 +743,111 @@ export default function PublicApp() {
                   <span>
                     <Footprints size={19} />
                     <strong>{activeRoute.route.minutes} min</strong>
-                    <small>Est. walking time</small>
+                    <small>{t('Est. walking time')} </small>
                   </span>
                   <span>
                     <RouteIcon size={19} />
                     <strong>{(activeRoute.route.distance / 1000).toFixed(1)} km</strong>
-                    <small>Network distance</small>
+                    <small>{language === 'fil' ? 'Haba ng ruta' : 'Network distance'}</small>
                   </span>
                   <span>
                     <ShieldCheck size={19} />
-                    <strong>{activeRoute.route.risk < 35 ? 'Low' : 'Elevated'} risk</strong>
-                    <small>From recorded hazards</small>
+                    <strong>{t(activeRoute.route.risk < 35 ? 'Low risk' : 'Elevated risk')}</strong>
+                    <small>
+                      {language === 'fil'
+                        ? 'Batay sa iniulat na panganib'
+                        : 'From recorded hazards'}
+                    </small>
                   </span>
                 </div>
-                <button id="open-navigation" className="primary-button navigation-toggle" onClick={() => { setPicking(false); setNavigating(true); setOverview((n) => n + 1); }} hidden={navigating}>
-                  <Navigation size={20} /> Open navigation view
+                <button
+                  id="open-navigation"
+                  className="primary-button navigation-toggle"
+                  onClick={() => {
+                    setPicking(false);
+                    setNavigating(true);
+                    setOverview((n) => n + 1);
+                  }}
+                  hidden={navigating}
+                >
+                  <Navigation size={20} />{' '}
+                  {language === 'fil' ? 'Buksan ang gabay sa mapa' : 'Open navigation view'}
                 </button>
                 {navigating && (
                   <div className="navigation-directions">
-                    <button className="secondary-button" onClick={() => setOverview((n) => n + 1)}>Show entire route</button>
-                    <p>{snapshot?.demo ? 'Sample preview only. ' : ''}Directions from your selected starting point; position is not tracked live.</p>
-                    <h4>Streets to the shelter</h4>
-                    <ol>{activeRoute.route.roadIds.map((id, i) => {
-                      const name = snapshot?.roads.find((road) => road.id === id)?.name || 'Unnamed street';
-                      const previous = snapshot?.roads.find((road) => road.id === activeRoute.route.roadIds[i - 1])?.name;
-                      return name === previous ? null : <li key={id}>{i === 0 ? 'Start on' : 'Continue onto'} {name}</li>;
-                    })}<li>Approach {activeRoute.shelter.name}. Check the shelter entrance locally.</li></ol>
-                    <h4>Blocked street segments — avoided</h4>
-                    <p>Red sections are blocked. Other sections of the same street may remain open.</p>
-                    <ul className="navigation-blocked">{snapshot?.roads.filter((road) => segmentRisk(road, snapshot.hazards).blocked).map((road) => <li key={road.id}><strong>{road.name}</strong> — {snapshot.hazards.filter((h) => h.active && h.road_id === road.id).map((h) => h.hazard_type).join(', ') || 'Road closure'}</li>)}</ul>
+                    <button className="secondary-button" onClick={() => setOverview((n) => n + 1)}>
+                      {t('Show entire route')}{' '}
+                    </button>
+                    <p>
+                      {snapshot?.demo ? 'Sample preview only. ' : ''}
+                      {t(
+                        'Directions from your selected starting point; position is not tracked live.',
+                      )}{' '}
+                    </p>
+                    <h4>{t('Streets to the shelter')} </h4>
+                    <ol>
+                      {activeRoute.route.roadIds.map((id, i) => {
+                        const name =
+                          snapshot?.roads.find((road) => road.id === id)?.name || 'Unnamed street';
+                        const previous = snapshot?.roads.find(
+                          (road) => road.id === activeRoute.route.roadIds[i - 1],
+                        )?.name;
+                        return name === previous ? null : (
+                          <li key={`${id}-${i}`}>
+                            {i === 0 ? t('Start on') : t('Continue onto')} {name}
+                          </li>
+                        );
+                      })}
+                      <li>
+                        {language === 'fil' ? 'Lumapit sa' : 'Approach'} {activeRoute.shelter.name}.{' '}
+                        {language === 'fil'
+                          ? 'Tiyakin ang pasukan pagdating.'
+                          : 'Check the shelter entrance locally.'}
+                      </li>
+                    </ol>
+                    <h4>{t('Blocked street segments — avoided')} </h4>
+                    <p>
+                      {t(
+                        'Red sections are blocked. Other sections of the same street may remain open.',
+                      )}{' '}
+                    </p>
+                    <ul className="navigation-blocked">
+                      {snapshot?.roads
+                        .filter((road) => segmentRisk(road, snapshot.hazards).blocked)
+                        .map((road) => (
+                          <li key={road.id}>
+                            <strong>{road.name}</strong> —{' '}
+                            {snapshot.hazards
+                              .filter((h) => h.active && h.road_id === road.id)
+                              .map((h) => t(h.hazard_type))
+                              .join(', ') || 'Road closure'}
+                          </li>
+                        ))}
+                    </ul>
                   </div>
                 )}
                 <details>
-                  <summary>Route details and limitations</summary>
+                  <summary>{t('Route details and limitations')} </summary>
                   <p>
-                    Starts {Math.round(activeRoute.route.snapDistance)} m from your selected point
-                    at the nearest road-network node. The approach to the road and shelter entrance
-                    are not assessed. ETA assumes walking at 65 m/min, adjusted for recorded risk.
+                    {language === 'fil'
+                      ? `Nagsisimula ang ruta ${Math.round(activeRoute.route.snapDistance)} m mula sa napiling lokasyon, sa pinakamalapit na punto ng kalsada. Hindi pa nasuri ang paglapit mula sa lokasyon mo. Tantiyang oras lamang ang ipinapakita, batay sa 65 m/min at iniulat na panganib.`
+                      : `Starts ${Math.round(activeRoute.route.snapDistance)} m from your selected point at the nearest road-network node. The approach from your position is not assessed. ETA assumes walking at 65 m/min, adjusted for recorded risk.`}{' '}
+                    {t(
+                      activeRoute.shelter.entrance_verified
+                        ? 'Entrance checked by staff'
+                        : 'Entrance not yet verified',
+                    )}
+                    .
                   </p>
                   <p>
-                    {activeRoute.route.roadIds.length} road segments.{' '}
-                    {activeRoute.shelter.capacity - activeRoute.shelter.occupancy} reported spaces
-                    available. Follow local responder directions; conditions can change.
+                    {language === 'fil'
+                      ? `${activeRoute.route.roadIds.length} bahagi ng kalsada. ${activeRoute.shelter.capacity - activeRoute.shelter.occupancy} iniulat na bakanteng puwesto. Sundin ang responders; maaaring magbago ang kondisyon.`
+                      : `${activeRoute.route.roadIds.length} road segments. ${activeRoute.shelter.capacity - activeRoute.shelter.occupancy} reported spaces available. Follow local responder directions; conditions can change.`}
                   </p>
                   <ol>
                     {activeRoute.route.roadIds.map((id, i) => (
-                      <li key={id}>
-                        {i === 0 ? 'Start on' : 'Continue along'}{' '}
+                      <li key={`${id}-${i}`}>
+                        {i === 0 ? t('Start on') : t('Continue along')}{' '}
                         {snapshot?.roads.find((r) => r.id === id)?.name || 'road segment'}.
                       </li>
                     ))}
@@ -720,11 +860,13 @@ export default function PublicApp() {
                 <Info size={14} />
                 {snapshot?.demo
                   ? 'OSM streets · sample incidents · not for navigation'
-                : snapshot?.setupRequired ? 'Santa Rosa streets · awaiting CDRRMO data' : 'Routes use the latest available road and hazard reports'}
+                  : snapshot?.setupRequired
+                    ? 'Santa Rosa streets · awaiting CDRRMO data'
+                    : t('Routes use the latest available road and hazard reports')}
               </span>
               <button className="text-button" onClick={() => void sync()}>
                 <RefreshCw size={14} />
-                Refresh data
+                {t('Refresh data')}{' '}
               </button>
             </footer>
           </section>
@@ -735,11 +877,11 @@ export default function PublicApp() {
               <House size={21} />
             </span>
             <div>
-              <p>Available shelters</p>
+              <p>{t('Available shelters')} </p>
               <strong>
                 {snapshot?.shelters.filter((s) => ['Open', 'Near full'].includes(shelterStatus(s)))
                   .length || 0}
-                <small> accepting evacuees</small>
+                <small> {t('accepting evacuees')} </small>
               </strong>
             </div>
             <ChevronRight size={18} />
@@ -749,10 +891,10 @@ export default function PublicApp() {
               <Users size={21} />
             </span>
             <div>
-              <p>Reported capacity</p>
+              <p>{t('Reported capacity')} </p>
               <strong>
                 {freeSpaces.toLocaleString()}
-                <small> spaces available</small>
+                <small> {t('spaces available')} </small>
               </strong>
             </div>
           </article>
@@ -761,10 +903,10 @@ export default function PublicApp() {
               <TriangleAlert size={21} />
             </span>
             <div>
-              <p>Street hazard reports</p>
+              <p>{t('Street hazard reports')} </p>
               <strong>
                 {activeHazards.length}
-                <small> included in route checks</small>
+                <small> {t('included in route checks')} </small>
               </strong>
             </div>
           </article>
@@ -772,35 +914,21 @@ export default function PublicApp() {
         <footer className="site-footer">
           <span>
             <ShieldCheck size={16} />
-            <strong>EVACU-ROSA</strong> <span>Helping Santa Rosa move toward safety.</span>
+            <strong>EVACU-ROSA</strong> <span>{t('Helping Santa Rosa move toward safety.')} </span>
           </span>
           <span>
-            {snapshot?.demo ? 'Prototype · illustrative data' : 'Community evacuation support'}
+            {snapshot?.demo ? 'Prototype · illustrative data' : t('Community evacuation support')}
             <span className="footer-dot">·</span>
             <button className="text-button" onClick={() => setHelp(true)}>
-              About this system <ArrowRight size={13} />
+              {t('About this system')} <ArrowRight size={13} />
             </button>
           </span>
         </footer>
       </main>
-      {notice && (
-        <div className="notice" role="status">
-          <Info size={20} />
-          <p>{notice}</p>
-          <button
-            className="icon-button"
-            aria-label="Dismiss message"
-            onClick={() => setNotice('')}
-          >
-            <X size={18} />
-          </button>
-        </div>
-      )}
       <div className="mobile-action">
         <button className="primary-button" onClick={findShelter} disabled={loading || !snapshot}>
           <Navigation size={20} />
-          Find Shelter Now
-          <ArrowRight size={19} />
+          {t('Find Shelter Now')} <ArrowRight size={19} />
         </button>
       </div>
       {help && <HelpDialog onClose={() => setHelp(false)} />}
@@ -822,13 +950,14 @@ function ShelterCard({
   recommended: boolean;
   onSelect: () => void;
 }) {
+  const { t } = useLanguage();
   const status = shelterStatus(s),
     percent = Math.round((s.occupancy / s.capacity) * 100);
   return (
     <article className={`shelter-card ${selected ? 'selected' : ''}`}>
       {recommended && (
         <p className="recommended">
-          <ShieldCheck size={13} /> RECOMMENDED FOR YOU
+          <ShieldCheck size={13} /> {t('RECOMMENDED FOR YOU')}{' '}
         </p>
       )}
       <div className="shelter-card-top">
@@ -836,11 +965,11 @@ function ShelterCard({
         <span
           className={`badge ${status === 'Open' ? 'badge-green' : status === 'Near full' ? 'badge-amber' : 'badge-danger'}`}
         >
-          {status === 'Open' ? <CheckCircle2 size={12} /> : <TriangleAlert size={12} />} {status}
+          {status === 'Open' ? <CheckCircle2 size={12} /> : <TriangleAlert size={12} />} {t(status)}
         </span>
         {s.accessible && (
-          <span className="accessible-label" title="Step-free shelter entrance">
-            Step-free
+          <span className="accessible-label" title={t('Step-free shelter entrance')}>
+            {t('Step-free')}{' '}
           </span>
         )}
       </div>
@@ -861,14 +990,14 @@ function ShelterCard({
           <span>{(rank.route.distance / 1000).toFixed(1)} km</span>
           <span className={rank.route.risk < 35 ? 'low-risk' : 'elevated-risk'}>
             <ShieldCheck size={13} />
-            {rank.route.risk < 35 ? 'Low risk' : 'Elevated risk'}
+            {rank.route.risk < 35 ? t('Low risk') : t('Elevated risk')}
           </span>
         </div>
       )}
       <div className="capacity-label">
         <span>
           <Users size={13} />
-          {Math.max(0, s.capacity - s.occupancy)} spaces available
+          {Math.max(0, s.capacity - s.occupancy)} {t('spaces available')}{' '}
         </span>
         <span>
           {s.occupancy}/{s.capacity}
@@ -882,21 +1011,23 @@ function ShelterCard({
         aria-label={`${s.name} occupancy`}
       />
       <details className="shelter-details">
-        <summary>Facilities and access</summary>
-        <p>{s.amenities.join(' · ')}</p>
+        <summary>{t('Facilities and access')} </summary>
+        <p>{s.amenities.map(t).join(' · ')}</p>
+        <ShelterOperations shelter={s} />
         <p>
           {s.accessible
-            ? 'Step-free entrance reported. Route accessibility has not been assessed.'
-            : 'Step-free access has not been confirmed.'}
+            ? t('Step-free entrance reported. Route accessibility has not been assessed.')
+            : t('Step-free access has not been confirmed.')}
         </p>
       </details>
     </article>
   );
 }
 function CoordinateEntry({ onChoose }: { onChoose: (point: Position, name: string) => void }) {
+  const { t } = useLanguage();
   return (
     <details className="coordinate-entry">
-      <summary>Enter a location by coordinates</summary>
+      <summary>{t('Enter a location by coordinates')} </summary>
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -940,7 +1071,7 @@ function CoordinateEntry({ onChoose }: { onChoose: (point: Position, name: strin
           </label>
         </div>
         <button className="secondary-button w-full" type="submit">
-          Use this starting point
+          {t('Use this starting point')}{' '}
         </button>
       </form>
     </details>
@@ -948,6 +1079,7 @@ function CoordinateEntry({ onChoose }: { onChoose: (point: Position, name: strin
 }
 
 function HelpDialog({ onClose }: { onClose: () => void }) {
+  const { t } = useLanguage();
   useEffect(() => {
     const el = document.getElementById('help-dialog') as HTMLDialogElement;
     el.showModal();
@@ -962,39 +1094,42 @@ function HelpDialog({ onClose }: { onClose: () => void }) {
     >
       <div className="dialog-heading">
         <ShieldCheck size={25} />
-        <h2 id="help-title">Find your way to safety</h2>
-        <button autoFocus className="icon-button" aria-label="Close help" onClick={onClose}>
+        <h2 id="help-title">{t('Find your way to safety')} </h2>
+        <button autoFocus className="icon-button" aria-label={t('Close help')} onClick={onClose}>
           <X size={20} />
         </button>
       </div>
       <ol>
         <li>
-          <strong>Choose your starting point.</strong> Use your location or select a point on the
-          map.
+          <strong>{t('Choose your starting point.')} </strong>{' '}
+          {t('Use your location or select a point on the map.')}{' '}
         </li>
         <li>
-          <strong>Find a shelter.</strong> Routes consider flood, fire, earthquake exposure, road
-          conditions, and available capacity.
+          <strong>{t('Find a shelter.')} </strong>{' '}
+          {t(
+            'Routes consider flood, fire, earthquake exposure, road conditions, and available capacity.',
+          )}{' '}
         </li>
         <li>
-          <strong>Check conditions as you go.</strong> Recorded data can be incomplete. Follow
-          official evacuation instructions.
+          <strong>{t('Check conditions as you go.')} </strong>{' '}
+          {t('Recorded data can be incomplete. Follow official evacuation instructions.')}{' '}
         </li>
       </ol>
       <section>
-        <h3>Need immediate assistance?</h3>
+        <h3>{t('Need immediate assistance?')} </h3>
         <p>
-          Contact local emergency responders or the nearest barangay office. This app does not
-          dispatch assistance.
+          {t(
+            'Contact local emergency responders or the nearest barangay office. This app does not dispatch assistance.',
+          )}{' '}
         </p>
       </section>
       <p className="inline-warning">
-        Your browser asks permission
-        before sharing your location with this page; your position is not saved or uploaded
-        automatically.
+        {t(
+          'Your browser asks permission before sharing your location with this page; your position is not saved or uploaded automatically.',
+        )}{' '}
       </p>
       <button className="primary-button" onClick={onClose}>
-        Got it <Check size={18} />
+        {t('Got it')} <Check size={18} />
       </button>
     </dialog>
   );

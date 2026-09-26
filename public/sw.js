@@ -1,4 +1,4 @@
-const CACHE = 'evacu-rosa-shell-v3';
+const CACHE = 'evacu-rosa-shell-v5';
 self.addEventListener('install', (event) => {
   event.waitUntil(
     (async () => {
@@ -8,6 +8,8 @@ self.addEventListener('install', (event) => {
       const html = await response.clone().text();
       await cache.put('/', response);
       const assets = [
+        '/logo.svg',
+        '/icon.svg',
         ...new Set(
           [...html.matchAll(/(?:src|href)="([^\"]+)"/g)]
             .map((match) => match[1])
@@ -80,7 +82,10 @@ self.addEventListener('fetch', (event) => {
         })
         .catch(() => caches.match('/').then((saved) => saved || Response.error())),
     );
-  } else if (url.pathname.startsWith('/_next/static/') || url.pathname === '/icon.svg') {
+  } else if (
+    url.pathname.startsWith('/_next/static/') ||
+    ['/icon.svg', '/logo.svg'].includes(url.pathname)
+  ) {
     event.respondWith(
       caches.match(request).then(
         (saved) =>

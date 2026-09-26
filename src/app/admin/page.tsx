@@ -1,15 +1,27 @@
 'use client';
 import Link from 'next/link';
+import BrandLogo from '@/components/brand-logo';
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Check, LogOut, Plus, ShieldCheck, Trash2, Waves, Flame, Mountain } from 'lucide-react';
+import {
+  ArrowLeft,
+  Check,
+  LogOut,
+  Plus,
+  ShieldCheck,
+  Trash2,
+  Waves,
+  Flame,
+  Mountain,
+} from 'lucide-react';
 import { configured, supabase } from '@/lib/supabase';
 import RoadPicker from '@/components/road-picker';
 import AssistanceInbox from '@/components/assistance-inbox';
 import type { Road, Snapshot } from '@/lib/types';
 type RecordData = Record<string, unknown>;
 const ShelterLocationPicker = dynamic(() => import('@/components/shelter-location-picker'), {
-  ssr: false, loading: () => <p>Loading shelter location map…</p>,
+  ssr: false,
+  loading: () => <p>Loading shelter location map…</p>,
 });
 type Resource =
   'evacuation_centers' | 'road_hazards' | 'roads' | 'admin_accounts' | 'incident_logs';
@@ -29,6 +41,11 @@ const defaults: Record<Exclude<Resource, 'incident_logs'>, RecordData> = {
     status: 'open',
     accessible: false,
     amenities: ['Drinking water', 'Toilets'],
+    entrance_verified: false,
+    water_status: 'unknown',
+    food_status: 'unknown',
+    medical_status: 'unknown',
+    operational_notes: '',
     geometry: { type: 'Point', coordinates: [121.109, 14.297] },
   },
   road_hazards: {
@@ -65,6 +82,11 @@ const fieldLabels: Record<string, string> = {
   occupancy: 'Current occupancy',
   status: 'Shelter status',
   accessible: 'Step-free entrance',
+  entrance_verified: 'Entrance pin checked in person by staff',
+  water_status: 'Drinking water supplies',
+  food_status: 'Food supplies',
+  medical_status: 'First-aid supplies',
+  operational_notes: 'Public shelter update (optional)',
   amenities: 'Facilities (comma separated)',
   hazard_type: 'Hazard type',
   severity: 'Severity (0–1)',
@@ -81,7 +103,10 @@ const fieldLabels: Record<string, string> = {
   notes: 'CDRRMO report details (optional)',
 };
 const choices: Record<string, string[]> = {
-  status: ['open', 'closed'],
+  status: ['open', 'paused', 'closed'],
+  water_status: ['unknown', 'adequate', 'low', 'unavailable'],
+  food_status: ['unknown', 'adequate', 'low', 'unavailable'],
+  medical_status: ['unknown', 'adequate', 'low', 'unavailable'],
   hazard_type: ['flood', 'fire', 'earthquake'],
   role: ['barangay', 'citywide'],
 };
@@ -143,7 +168,10 @@ export default function AdminPage() {
   const load = useCallback(async () => {
     if (!db) {
       const response = await fetch('/api/snapshot');
-      if (!response.ok) { setMessage('Street data could not be loaded.'); return; }
+      if (!response.ok) {
+        setMessage('Street data could not be loaded.');
+        return;
+      }
       const s: Snapshot = await response.json();
       setRoads(s.roads);
       setRecords(
@@ -235,7 +263,8 @@ export default function AdminPage() {
     setMessage('');
     try {
       const payload = { ...draft };
-      if (resource === 'evacuation_centers' && !payload.geometry) throw new Error('Select the shelter location on the map first.');
+      if (resource === 'evacuation_centers' && !payload.geometry)
+        throw new Error('Select the shelter location on the map first.');
       if (resource === 'road_hazards') {
         if (!editId) {
           if (!selectedRoadIds.length) throw new Error('Select at least one affected street.');
@@ -262,7 +291,11 @@ export default function AdminPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
       setDraft(null);
-      setMessage(resource === 'road_hazards' && !editId ? `${selectedRoadIds.length} street reports published. Public data will refresh within one minute.` : 'Record saved. Public data will refresh within one minute.');
+      setMessage(
+        resource === 'road_hazards' && !editId
+          ? `${selectedRoadIds.length} street reports published. Public data will refresh within one minute.`
+          : 'Record saved. Public data will refresh within one minute.',
+      );
       await load();
     } catch (e) {
       setMessage(e instanceof Error ? e.message : 'Unable to save.');
@@ -293,17 +326,21 @@ export default function AdminPage() {
   const tabs = (Object.keys(labels) as Resource[]).filter(
     (r) => r !== 'admin_accounts' || role === 'citywide',
   );
-  const displayed = resource === 'road_hazards' ? records.filter((record) =>
-    (reportFilter === 'all' || Boolean(record.active) === (reportFilter === 'active')) &&
-    `${roads.find(road => road.id === record.road_id)?.name || record.name || ''} ${record.hazard_type} ${record.notes || ''}`.toLowerCase().includes(reportSearch.toLowerCase())
-  ) : records;
+  const displayed =
+    resource === 'road_hazards'
+      ? records.filter(
+          (record) =>
+            (reportFilter === 'all' || Boolean(record.active) === (reportFilter === 'active')) &&
+            `${roads.find((road) => road.id === record.road_id)?.name || record.name || ''} ${record.hazard_type} ${record.notes || ''}`
+              .toLowerCase()
+              .includes(reportSearch.toLowerCase()),
+        )
+      : records;
   return (
     <>
-      <header className="topbar">
+      <header className="topbar" lang="en">
         <Link className="brand" href="/">
-          <span className="brand-symbol">
-            <ShieldCheck size={26} />
-          </span>
+          <BrandLogo />
           <span>
             EVACU<span className="brand-accent">-ROSA</span>
             <small>OPERATIONS CENTER</small>
@@ -314,12 +351,12 @@ export default function AdminPage() {
           Public map
         </Link>
       </header>
-      <main id="main" className="admin-main">
+      <main id="main" className="admin-main" lang="en">
         {checking ? (
           <p>Checking administrator access…</p>
         ) : db && !token ? (
           <form onSubmit={signIn} className="admin-login">
-            <ShieldCheck size={32} />
+            <BrandLogo large />
             <h1 className="mt-3">CDRRMO sign-in</h1>
             <p>Manage local shelter capacity, hazard reports, and road conditions.</p>
             <label className="field">
@@ -384,7 +421,9 @@ export default function AdminPage() {
               <aside className="offline-banner">
                 <ShieldCheck size={20} />
                 <p>
-                  <strong>Database connection required.</strong> You can select a street and prepare a report here. Publishing and administrator sign-in become available after Supabase is connected. Unsaved reports are not stored.
+                  <strong>Database connection required.</strong> You can select a street and prepare
+                  a report here. Publishing and administrator sign-in become available after
+                  Supabase is connected. Unsaved reports are not stored.
                 </p>
               </aside>
             )}
@@ -409,26 +448,76 @@ export default function AdminPage() {
                   {records.length === 1000 ? ' — first 1,000 records' : ''})
                 </span>
               </h2>
-              {token && resource !== 'incident_logs' && (resource !== 'road_hazards' || role === 'citywide') && (
-                <button className="secondary-button flex items-center gap-2" onClick={() => edit()}>
-                  <Plus size={17} />
-                  {resource === 'road_hazards' ? 'Report street hazard' : 'Add record'}
+              {token &&
+                resource !== 'incident_logs' &&
+                (resource !== 'road_hazards' || role === 'citywide') && (
+                  <button
+                    className="secondary-button flex items-center gap-2"
+                    onClick={() => edit()}
+                  >
+                    <Plus size={17} />
+                    {resource === 'road_hazards' ? 'Report street hazard' : 'Add record'}
+                  </button>
+                )}
+              {!db && resource === 'road_hazards' && (
+                <button className="secondary-button" onClick={() => edit()}>
+                  Prepare street report
                 </button>
               )}
-              {!db && resource === 'road_hazards' && <button className="secondary-button" onClick={() => edit()}>Prepare street report</button>}
             </div>
-            {resource === 'road_hazards' && <>
-              <div className="cdrrmo-report-actions" aria-label="Report a street hazard">
-                {([{type: 'flood', label: 'Report flooding', Icon: Waves}, {type: 'fire', label: 'Report fire', Icon: Flame}, {type: 'earthquake', label: 'Report earthquake damage', Icon: Mountain}] as const).map(({type, label, Icon}) =>
-                  <button key={type} className="secondary-button" disabled={busy || Boolean(db && role !== 'citywide')} onClick={() => edit(undefined, {hazard_type: type})}><Icon size={24} /><strong>{label}</strong><span>Select the affected street</span></button>
-                )}
-              </div>
-              <div className="admin-form-grid">
-                <label className="field">Search reports<input type="search" placeholder="Street, hazard, or report details" value={reportSearch} onChange={event => setReportSearch(event.target.value)} /></label>
-                <label className="field">Report status<select value={reportFilter} onChange={event => setReportFilter(event.target.value)}><option value="active">Active reports</option><option value="cleared">Cleared reports</option><option value="all">All reports</option></select></label>
-              </div>
-            </>}
-            {resource === 'road_hazards' && <p className="my-3">CDRRMO selects the affected street segment and marks it blocked or affected. Clearing a report removes that hazard from routing; other active reports still apply.</p>}
+            {resource === 'road_hazards' && (
+              <>
+                <div className="cdrrmo-report-actions" aria-label="Report a street hazard">
+                  {(
+                    [
+                      { type: 'flood', label: 'Report flooding', Icon: Waves },
+                      { type: 'fire', label: 'Report fire', Icon: Flame },
+                      { type: 'earthquake', label: 'Report earthquake damage', Icon: Mountain },
+                    ] as const
+                  ).map(({ type, label, Icon }) => (
+                    <button
+                      key={type}
+                      className="secondary-button"
+                      disabled={busy || Boolean(db && role !== 'citywide')}
+                      onClick={() => edit(undefined, { hazard_type: type })}
+                    >
+                      <Icon size={24} />
+                      <strong>{label}</strong>
+                      <span>Select the affected street</span>
+                    </button>
+                  ))}
+                </div>
+                <div className="admin-form-grid">
+                  <label className="field">
+                    Search reports
+                    <input
+                      type="search"
+                      placeholder="Street, hazard, or report details"
+                      value={reportSearch}
+                      onChange={(event) => setReportSearch(event.target.value)}
+                    />
+                  </label>
+                  <label className="field">
+                    Report status
+                    <select
+                      value={reportFilter}
+                      onChange={(event) => setReportFilter(event.target.value)}
+                    >
+                      <option value="active">Active reports</option>
+                      <option value="cleared">Cleared reports</option>
+                      <option value="all">All reports</option>
+                    </select>
+                  </label>
+                </div>
+              </>
+            )}
+            {resource === 'road_hazards' && (
+              <p className="my-3">
+                CDRRMO selects the affected street segment and marks it blocked or affected.
+                Clearing a report removes that hazard from routing; other active reports still
+                apply.
+              </p>
+            )}
             {message && (
               <p role="status" className="inline-warning">
                 {message}
@@ -457,7 +546,9 @@ export default function AdminPage() {
             {draft && (
               <form id="record-editor" onSubmit={save} className="admin-editor">
                 <h2 className="text-xl font-bold">
-                  {resource === 'road_hazards' ? `${editId ? 'Update' : 'New'} ${draft.hazard_type} report` : `${editId ? 'Edit' : 'Add'} ${resource === 'admin_accounts' ? 'administrator' : 'record'}`}
+                  {resource === 'road_hazards'
+                    ? `${editId ? 'Update' : 'New'} ${draft.hazard_type} report`
+                    : `${editId ? 'Edit' : 'Add'} ${resource === 'admin_accounts' ? 'administrator' : 'record'}`}
                 </h2>
                 {resource === 'admin_accounts' && (
                   <p className="inline-warning">
@@ -465,77 +556,145 @@ export default function AdminPage() {
                     UUID and access role here.
                   </p>
                 )}
-                {resource === 'road_hazards' && <>
-                  <RoadPicker roads={roads} selectedId={String(draft.road_id)} onSelect={id => setDraft({ ...draft, road_id: id })} selectedIds={!editId ? selectedRoadIds : undefined} onSelectionChange={!editId ? setSelectedRoadIds : undefined} disabled={busy} />
-                  <h3 className="mt-5 text-lg font-bold">2. Describe the street condition</h3>
-                  <p className="my-2">A blocked segment is excluded from routes. Severity of 85% or higher also excludes it, even if “Road blocked” is set to No.</p>
-                </>}
-                {resource === 'evacuation_centers' && <ShelterLocationPicker value={String(draft.geometry || '')} onChange={geometry => setDraft(current => current ? {...current, geometry} : current)} />}
+                {resource === 'road_hazards' && (
+                  <>
+                    <RoadPicker
+                      roads={roads}
+                      selectedId={String(draft.road_id)}
+                      onSelect={(id) => setDraft({ ...draft, road_id: id })}
+                      selectedIds={!editId ? selectedRoadIds : undefined}
+                      onSelectionChange={!editId ? setSelectedRoadIds : undefined}
+                      disabled={busy}
+                    />
+                    <h3 className="mt-5 text-lg font-bold">2. Describe the street condition</h3>
+                    <p className="my-2">
+                      A blocked segment is excluded from routes. Severity of 85% or higher also
+                      excludes it, even if “Road blocked” is set to No.
+                    </p>
+                  </>
+                )}
+                {resource === 'evacuation_centers' && (
+                  <>
+                    <p className="inline-warning">
+                      Update occupancy, supplies and access after checking with shelter staff. Open
+                      accepts evacuees; paused temporarily stops new arrivals; closed is
+                      unavailable. Verify the entrance pin in person before marking it checked.
+                    </p>
+                    <ShelterLocationPicker
+                      value={String(draft.geometry || '')}
+                      onChange={(geometry) =>
+                        setDraft((current) =>
+                          current ? { ...current, geometry, entrance_verified: false } : current,
+                        )
+                      }
+                    />
+                  </>
+                )}
                 <div className="admin-form-grid">
-                  {Object.entries(draft).filter(([key]) => key !== 'road_id' && !(resource === 'evacuation_centers' && key === 'geometry')).map(([key, value]) => (
-                    <label className={`field ${key === 'geometry' ? 'wide' : ''}`} key={key}>
-                      {fieldLabels[key] || key}
-                      {key === 'geometry' ? (
-                        <textarea
-                          required
-                          rows={7}
-                          value={String(value)}
-                          onChange={(e) => setDraft({ ...draft, [key]: e.target.value })}
-                        />
-                      ) : typeof value === 'boolean' ? (
-                        <select
-                          value={String(value)}
-                          onChange={(e) => setDraft({ ...draft, [key]: e.target.value === 'true' })}
-                        >
-                          <option value="true">Yes</option>
-                          <option value="false">No</option>
-                        </select>
-                      ) : choices[key] ? (
-                        <select
-                          value={String(value)}
-                          onChange={(e) => setDraft({ ...draft, [key]: e.target.value })}
-                        >
-                          {choices[key].map((c) => (
-                            <option key={c}>{c}</option>
-                          ))}
-                        </select>
-                      ) : (
-                        <input
-                          required={
-                            !(key === 'barangay' && draft.role === 'citywide') &&
-                            key !== 'amenities' && key !== 'notes'
-                          }
-                          type={typeof value === 'number' ? 'number' : 'text'}
-                          step={['severity', 'condition'].includes(key) ? 0.01 : 'any'}
-                          min={typeof value === 'number' ? 0 : undefined}
-                          max={['severity', 'condition'].includes(key) ? 1 : undefined}
-                          readOnly={
-                            (key === 'barangay' && role === 'barangay') ||
-                            (key === 'user_id' && Boolean(editId))
-                          }
-                          value={String(value)}
-                          onChange={(e) =>
-                            setDraft({
-                              ...draft,
-                              [key]:
-                                typeof value === 'number' ? Number(e.target.value) : e.target.value,
-                            })
-                          }
-                        />
-                      )}
-                    </label>
-                  ))}
+                  {Object.entries(draft)
+                    .filter(
+                      ([key]) =>
+                        key !== 'road_id' &&
+                        !(resource === 'evacuation_centers' && key === 'geometry'),
+                    )
+                    .map(([key, value]) => (
+                      <label className={`field ${key === 'geometry' ? 'wide' : ''}`} key={key}>
+                        {fieldLabels[key] || key}
+                        {key === 'geometry' ? (
+                          <textarea
+                            required
+                            rows={7}
+                            value={String(value)}
+                            onChange={(e) => setDraft({ ...draft, [key]: e.target.value })}
+                          />
+                        ) : typeof value === 'boolean' ? (
+                          <select
+                            value={String(value)}
+                            onChange={(e) =>
+                              setDraft({ ...draft, [key]: e.target.value === 'true' })
+                            }
+                          >
+                            <option value="true">Yes</option>
+                            <option value="false">No</option>
+                          </select>
+                        ) : choices[key] ? (
+                          <select
+                            value={String(value)}
+                            onChange={(e) => setDraft({ ...draft, [key]: e.target.value })}
+                          >
+                            {choices[key].map((c) => (
+                              <option key={c}>{c}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            required={
+                              !(key === 'barangay' && draft.role === 'citywide') &&
+                              key !== 'amenities' &&
+                              key !== 'notes' &&
+                              key !== 'operational_notes'
+                            }
+                            type={typeof value === 'number' ? 'number' : 'text'}
+                            step={
+                              ['severity', 'condition'].includes(key)
+                                ? 0.01
+                                : ['capacity', 'occupancy'].includes(key)
+                                  ? 1
+                                  : 'any'
+                            }
+                            min={key === 'capacity' ? 1 : typeof value === 'number' ? 0 : undefined}
+                            max={
+                              ['severity', 'condition'].includes(key)
+                                ? 1
+                                : key === 'occupancy'
+                                  ? Number(draft.capacity)
+                                  : undefined
+                            }
+                            readOnly={
+                              (key === 'barangay' && role === 'barangay') ||
+                              (key === 'user_id' && Boolean(editId))
+                            }
+                            value={String(value)}
+                            onChange={(e) =>
+                              setDraft({
+                                ...draft,
+                                [key]:
+                                  typeof value === 'number'
+                                    ? Number(e.target.value)
+                                    : e.target.value,
+                              })
+                            }
+                          />
+                        )}
+                      </label>
+                    ))}
                 </div>
                 <div className="admin-actions">
-                  <button className="primary-button" disabled={busy || !token || (resource === 'evacuation_centers' && !draft.geometry)}>
-                    {resource === 'road_hazards' ? draft.active ? editId ? 'Update report' : 'Publish report' : 'Save cleared report' : 'Save changes'}
+                  <button
+                    className="primary-button"
+                    disabled={
+                      busy || !token || (resource === 'evacuation_centers' && !draft.geometry)
+                    }
+                  >
+                    {resource === 'road_hazards'
+                      ? draft.active
+                        ? editId
+                          ? 'Update report'
+                          : 'Publish report'
+                        : 'Save cleared report'
+                      : 'Save changes'}
                     <Check size={17} />
                   </button>
                   <button type="button" className="secondary-button" onClick={() => setDraft(null)}>
                     Cancel
                   </button>
                 </div>
-                {!token && <p className="inline-warning">Connect the database and sign in with CDRRMO / citywide access to publish this report for all users.</p>}
+                {!token && (
+                  <p className="inline-warning">
+                    Connect the database and sign in with CDRRMO / citywide access to publish this
+                    report for all users.
+                  </p>
+                )}
               </form>
             )}
             {busy && !records.length ? (
@@ -547,20 +706,45 @@ export default function AdminPage() {
               >
                 {displayed.slice(0, 100).map((r, i) => (
                   <article className="admin-record" key={String(r.id || r.user_id || i)}>
-                    <h3>{String(r.name || (resource === 'road_hazards' ? roads.find(road => road.id === r.road_id)?.name || 'Street segment' : r.user_id || `${r.action} · ${r.resource}`))}</h3>
+                    <h3>
+                      {String(
+                        r.name ||
+                          (resource === 'road_hazards'
+                            ? roads.find((road) => road.id === r.road_id)?.name || 'Street segment'
+                            : r.user_id || `${r.action} · ${r.resource}`),
+                      )}
+                    </h3>
                     <p>
                       {String(r.barangay || 'Citywide')}
                       {r.role ? ` · ${r.role}` : ''}
                     </p>
                     {resource === 'evacuation_centers' && (
-                      <p>
-                        {String(r.occupancy)} / {String(r.capacity)} occupied · {String(r.status)}
-                      </p>
+                      <div>
+                        <p>
+                          {String(r.occupancy)} / {String(r.capacity)} occupied · {String(r.status)}
+                        </p>
+                        <p>
+                          Water: {String(r.water_status || 'unknown')} · Food:{' '}
+                          {String(r.food_status || 'unknown')} · First aid:{' '}
+                          {String(r.medical_status || 'unknown')}
+                        </p>
+                        <p>{String(r.operational_notes || '')}</p>
+                        <p>
+                          Updated:{' '}
+                          {r.updated_at
+                            ? new Date(String(r.updated_at)).toLocaleString()
+                            : 'Not reported'}
+                        </p>
+                      </div>
                     )}
                     {resource === 'road_hazards' && (
                       <p>
                         {String(r.hazard_type)} · {Math.round(Number(r.severity) * 100)}% severity ·{' '}
-                        {r.active ? r.blocked || Number(r.severity) >= .85 ? 'Blocked' : 'Affected' : 'Cleared'}
+                        {r.active
+                          ? r.blocked || Number(r.severity) >= 0.85
+                            ? 'Blocked'
+                            : 'Affected'
+                          : 'Cleared'}
                       </p>
                     )}
                     {resource === 'road_hazards' && <p>{String(r.notes || '')}</p>}
@@ -585,12 +769,20 @@ export default function AdminPage() {
                         </pre>
                       </details>
                     ) : (
-                      token && (resource !== 'road_hazards' || role === 'citywide') && (
+                      token &&
+                      (resource !== 'road_hazards' || role === 'citywide') && (
                         <footer>
                           <button className="secondary-button" onClick={() => edit(r)}>
                             Edit record
                           </button>
-                          {resource === 'road_hazards' && Boolean(r.active) && <button className="secondary-button" onClick={() => edit(r, {active: false})}>Mark as cleared</button>}
+                          {resource === 'road_hazards' && Boolean(r.active) && (
+                            <button
+                              className="secondary-button"
+                              onClick={() => edit(r, { active: false })}
+                            >
+                              Mark as cleared
+                            </button>
+                          )}
                           <button
                             className="secondary-button danger-button flex items-center gap-2"
                             onClick={() =>
@@ -609,9 +801,15 @@ export default function AdminPage() {
                 ))}
               </section>
             )}
-            {displayed.length > 100 && <p>Showing the first 100 matches. Refine your search to find a report.</p>}
+            {displayed.length > 100 && (
+              <p>Showing the first 100 matches. Refine your search to find a report.</p>
+            )}
             {!busy && !displayed.length && (
-              <p className="empty-state">{resource === 'road_hazards' ? 'No matching reports. Select a hazard above to report an affected street.' : 'No records available for this account.'}</p>
+              <p className="empty-state">
+                {resource === 'road_hazards'
+                  ? 'No matching reports. Select a hazard above to report an affected street.'
+                  : 'No records available for this account.'}
+              </p>
             )}
           </>
         )}

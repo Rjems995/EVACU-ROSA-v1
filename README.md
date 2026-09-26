@@ -2,7 +2,9 @@
 
 A responsive evacuation-map application for Santa Rosa City, Laguna. Built with Next.js App Router, React, TypeScript, Tailwind CSS, Leaflet, Supabase Auth, PostgreSQL/PostGIS, Mamdani fuzzy inference, A* routing, and IndexedDB.
 
-**The default public map contains streets only, with no fictional shelters or incidents.** Connect Supabase to enable CDRRMO sign-in and shared reports using [the CDRRMO setup guide](docs/cdrrmo-setup.md). Road lines follow a partial 5,000-segment OpenStreetMap extract. Official boundaries are not included. See [street data attribution](src/data/README.md).
+**The default public map contains streets only, with no fictional shelters or incidents.** Connect Supabase to enable CDRRMO sign-in and shared reports using [the CDRRMO setup guide](docs/cdrrmo-setup.md). The expanded dataset contains 10,946 OpenStreetMap street/footpath segments, selected using the Santa Rosa city area. Completeness, access and local conditions still need field verification. Official boundaries are not included. See [street data attribution](src/data/README.md).
+
+**Existing Supabase projects:** apply [migration 004](supabase/migrations/004_shelter_operations.sql), then the 21 [city street upgrade batches](supabase/city-road-upgrade/README.md). This adds shelter operations fields and streets while retaining existing road IDs and reports. See [the upgrade guide](docs/city-shelter-language-upgrade.md).
 
 ## Run locally
 
@@ -53,6 +55,8 @@ Barangay administrators can manage assigned shelters/road conditions. **Only cit
 - Automatic location request with permission/HTTPS fallback, manual coordinates/map selection, shelter search, accessible-entrance filter, hazard toggles, ranked shelters, and route details.
 - Flood, fire, and earthquake reports highlight only the selected street segment: red for blocked, amber for affected, paired with status text and named street labels. Hiding a layer **never** removes its reports from routing.
 - Capacity/status indicators, reported facilities, walking-time estimates, high-contrast dark theme, mobile sticky primary action, semantic forms/buttons, keyboard-accessible shelter list, reduced-motion support.
+- English/Filipino public controls with a saved language preference; location, routing, assistance consent and shelter information translate without resetting the current route. Recorded street names and staff notes remain unchanged.
+- Staff can update shelter occupancy, temporarily pause arrivals, report water/food/first-aid supplies, add a public note and confirm an entrance pin. Paused, full and closed shelters are excluded from recommendations. Updates are timestamped and audited; entries older than 24 hours are flagged.
 - CRUD for shelters, hazards, road conditions/geometry, and app administrator roles; immutable operational change history. Admin tables are presented as responsive cards.
 - IndexedDB snapshots including the graph, shelters, boundaries, and hazards. Offline route computation uses that snapshot. Online/reconnect/visibility events and a one-minute poll update data and recalculate displayed routes.
 - Service worker for the public app shell and same-origin static assets. Admin pages and API responses are not service-worker cached. OpenStreetMap tiles are **not** cached or downloaded in bulk. Offline maps still show saved geometry, hazards, routes, and shelter markers; background tiles may be absent.

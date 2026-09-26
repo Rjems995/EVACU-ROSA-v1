@@ -38,25 +38,54 @@ type Edge = {
   length: number;
   cost: number;
   reverse: boolean;
+  coordinates: Position[];
 };
 export function buildGraph(roads: Road[], hazards: Hazard[]) {
   const nodes = new Map<string, Position>(),
     edges = new Map<string, Edge[]>();
+  const junctionUses = new Map<string, number>();
+  for (const road of roads)
+    for (const id of new Set(
+      road.node_ids?.length === road.geometry.coordinates.length
+        ? road.node_ids
+        : [road.source, road.target],
+    ))
+      junctionUses.set(id, (junctionUses.get(id) || 0) + 1);
   for (const road of roads) {
     const coords = road.geometry.coordinates as Position[];
-    nodes.set(road.source, coords[0]);
-    nodes.set(road.target, coords[coords.length - 1]);
+    const ids = road.node_ids?.length === coords.length ? road.node_ids : undefined;
+    const cuts = [
+      0,
+      ...coords.flatMap((_, i) =>
+        i > 0 && i < coords.length - 1 && ids && (junctionUses.get(ids[i]) || 0) > 1 ? [i] : [],
+      ),
+      coords.length - 1,
+    ];
     const risk = segmentRisk(road, hazards);
-    if (risk.blocked) continue;
-    const length = coords.slice(1).reduce((sum, p, i) => sum + distance(coords[i], p), 0);
-    const cost = Math.max(length, road.base_cost) * (1 + (4 * risk.score) / 100);
-    const add = (from: string, to: string, reverse: boolean) =>
-      edges.set(from, [
-        ...(edges.get(from) || []),
-        { to, road, risk: risk.score, length, cost, reverse },
-      ]);
-    add(road.source, road.target, false);
-    if (!road.oneway) add(road.target, road.source, true);
+    const fullLength = coords.slice(1).reduce((sum, p, i) => sum + distance(coords[i], p), 0);
+    for (let part = 1; part < cuts.length; part++) {
+      const a = cuts[part - 1],
+        b = cuts[part];
+      const source = ids?.[a] || road.source,
+        target = ids?.[b] || road.target;
+      const coordinates = coords.slice(a, b + 1);
+      nodes.set(source, coordinates[0]);
+      nodes.set(target, coordinates[coordinates.length - 1]);
+      if (risk.blocked) continue;
+      const length = coordinates
+        .slice(1)
+        .reduce((sum, p, i) => sum + distance(coordinates[i], p), 0);
+      const cost =
+        Math.max(length, fullLength ? (road.base_cost * length) / fullLength : 0) *
+        (1 + (4 * risk.score) / 100);
+      const add = (from: string, to: string, reverse: boolean) =>
+        edges.set(from, [
+          ...(edges.get(from) || []),
+          { to, road, risk: risk.score, length, cost, reverse, coordinates },
+        ]);
+      add(source, target, false);
+      if (!road.oneway) add(target, source, true);
+    }
   }
   return { nodes, edges };
 }
@@ -69,7 +98,10 @@ export function findRoute(
 ): Route | null {
   const { nodes, edges } = graph;
   const nearest = (pos: Position) =>
-    [...nodes.entries()].sort((a, b) => distance(pos, a[1]) - distance(pos, b[1]))[0];
+    [...nodes.entries()].reduce<[string, Position] | undefined>(
+      (best, node) => (!best || distance(pos, node[1]) < distance(pos, best[1]) ? node : best),
+      undefined,
+    );
   const start = nearest(origin),
     goal = nearest(destination);
   if (!start || !goal || distance(origin, start[1]) > 500 || distance(destination, goal[1]) > 150)
@@ -96,7 +128,7 @@ export function findRoute(
       let total = 0,
         riskSum = 0;
       for (const edge of path) {
-        const coords = [...edge.road.geometry.coordinates] as Position[];
+        const coords = [...edge.coordinates];
         if (edge.reverse) coords.reverse();
         coordinates.push(...coords.slice(1));
         total += edge.length;
@@ -105,7 +137,7 @@ export function findRoute(
       const risk = total ? riskSum / total : 0;
       return {
         coordinates,
-        roadIds: path.map((e) => e.road.id),
+        roadIds: path.map((e) => e.road.id).filter((id, i, ids) => i === 0 || id !== ids[i - 1]),
         distance: total,
         cost: g.get(current)!,
         risk,
@@ -128,6 +160,7 @@ export function findRoute(
   return null;
 }
 export function shelterStatus(s: Shelter) {
+  if (s.status === 'paused') return 'Not accepting';
   return s.status === 'closed'
     ? 'Closed'
     : s.occupancy >= s.capacity
@@ -145,7 +178,7 @@ export function rankShelters(
   const graph = buildGraph(snapshot.roads, snapshot.hazards);
   for (const shelter of snapshot.shelters) {
     if (
-      ['Full', 'Closed'].includes(shelterStatus(shelter)) ||
+      ['Full', 'Closed', 'Not accepting'].includes(shelterStatus(shelter)) ||
       (accessibleOnly && !shelter.accessible)
     )
       continue;

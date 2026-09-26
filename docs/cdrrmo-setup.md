@@ -2,9 +2,11 @@
 
 The public app no longer falls back to fictional incidents or shelters. Without a database, it shows the OSM street map and a setup status. Old demonstration snapshots are rejected when reading offline storage.
 
+**Already connected?** For the citywide street expansion and shelter supply/entrance fields, follow [the existing-project upgrade](city-shelter-language-upgrade.md). Apply migration 004 and its street batches; do not recreate your tables.
+
 1. Create a Supabase project and apply `supabase/migrations/001_initial.sql` followed by `002_street_hazards.sql` in the SQL editor.
 2. Run the numbered street batches in [SQL Editor setup](../supabase/sql-editor-setup/README.md), starting with `01-import-streets.sql` because step 1 already created the tables. The batches import only the partial OSM road network, preserve existing rows, and reject existing demonstration incidents or shelters. Use `npm run prepare:database` to regenerate them. Apply [migration 003](../supabase/migrations/003_assistance_requests.sql) once to enable assistance alerts.
-3. Copy `.env.example` to `.env.local`. Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` to the project URL and public anon key. Never use a service-role key here. Rebuild and restart the app.
+3. Apply [migration 004](../supabase/migrations/004_shelter_operations.sql), then the numbered [city street upgrade batches](../supabase/city-road-upgrade/README.md). Copy `.env.example` to `.env.local`. Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` to the project URL and public anon key. Never use a service-role key here. Rebuild and restart the app.
 4. Create the CDRRMO user through Supabase Authentication. Assign the user's UUID in the SQL editor:
 
 ```sql

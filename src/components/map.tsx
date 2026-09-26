@@ -4,6 +4,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { HazardType, Position, Route, Snapshot } from '@/lib/types';
 import { segmentRisk, shelterStatus } from '@/lib/routing';
+import { useLanguage } from './language-provider';
 type Props = {
   snapshot: Snapshot;
   origin: Position | null;
@@ -16,7 +17,8 @@ type Props = {
   onPick: (p: Position) => void;
   onShelter: (id: string) => void;
 };
-const shelterHouse = '<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-8H9v8H4a1 1 0 0 1-1-1Z"/></svg>';
+const shelterHouse =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-8H9v8H4a1 1 0 0 1-1-1Z"/></svg>';
 const icon = (content: string, style: string) =>
   L.divIcon({
     className: '',
@@ -25,6 +27,7 @@ const icon = (content: string, style: string) =>
     iconAnchor: [22, 22],
   });
 export default function EvacuationMap(props: Props) {
+  const { t } = useLanguage();
   const element = useRef<HTMLDivElement>(null),
     map = useRef<L.Map | null>(null),
     layer = useRef<L.LayerGroup | null>(null);
@@ -33,7 +36,10 @@ export default function EvacuationMap(props: Props) {
   latest.current = props;
   useEffect(() => {
     if (!element.current) return;
-    const instance = L.map(element.current, { zoomControl: false, maxBoundsViscosity: 1 }).setView([14.297, 121.109], 14);
+    const instance = L.map(element.current, { zoomControl: false, maxBoundsViscosity: 1 }).setView(
+      [14.297, 121.109],
+      14,
+    );
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       maxZoom: 19,
@@ -50,9 +56,15 @@ export default function EvacuationMap(props: Props) {
       instance.invalidateSize();
       const current = latest.current;
       if (current.navigating && current.route?.coordinates.length) {
-        instance.fitBounds(L.latLngBounds(current.route.coordinates.map(([lng, lat]) => L.latLng(lat, lng))), {
-          paddingTopLeft: [35, 35], paddingBottomRight: [45, 120], maxZoom: 17, animate: false,
-        });
+        instance.fitBounds(
+          L.latLngBounds(current.route.coordinates.map(([lng, lat]) => L.latLng(lat, lng))),
+          {
+            paddingTopLeft: [35, 35],
+            paddingBottomRight: [45, 120],
+            maxZoom: 17,
+            animate: false,
+          },
+        );
       }
     });
     observer.observe(element.current);
@@ -66,8 +78,11 @@ export default function EvacuationMap(props: Props) {
   useEffect(() => {
     const instance = map.current;
     if (!instance || !props.snapshot.roads.length) return;
-    const coverage = L.latLngBounds(props.snapshot.roads.flatMap((road) =>
-      road.geometry.coordinates.map(([lng, lat]) => L.latLng(lat, lng))));
+    const coverage = L.latLngBounds(
+      props.snapshot.roads.flatMap((road) =>
+        road.geometry.coordinates.map(([lng, lat]) => L.latLng(lat, lng)),
+      ),
+    );
     const bounds = coverage.pad(0.08);
     instance.setMaxBounds(bounds);
     const update = () => {
@@ -77,7 +92,9 @@ export default function EvacuationMap(props: Props) {
     update();
     instance.fitBounds(coverage, { padding: [20, 20], animate: false });
     instance.on('resize', update);
-    return () => { instance.off('resize', update); };
+    return () => {
+      instance.off('resize', update);
+    };
   }, [props.snapshot.roads]);
   useEffect(() => {
     const group = layer.current;
@@ -85,11 +102,13 @@ export default function EvacuationMap(props: Props) {
     group.clearLayers();
     const { snapshot, origin, route, visible, boundaries } = props;
     if (props.navigating) {
-      const renderer = streetRenderer.current ??= L.canvas({ padding: 0.2 });
-      snapshot.roads.forEach((road) => L.polyline(
-        road.geometry.coordinates.map(([lng, lat]) => [lat, lng] as L.LatLngTuple),
-        { color: '#8999ac', weight: 2, opacity: 0.5, interactive: false, renderer },
-      ).addTo(group));
+      const renderer = (streetRenderer.current ??= L.canvas({ padding: 0.2 }));
+      snapshot.roads.forEach((road) =>
+        L.polyline(
+          road.geometry.coordinates.map(([lng, lat]) => [lat, lng] as L.LatLngTuple),
+          { color: '#8999ac', weight: 2, opacity: 0.5, interactive: false, renderer },
+        ).addTo(group),
+      );
     }
     if (boundaries)
       snapshot.boundaries.forEach((b) =>
@@ -116,14 +135,14 @@ export default function EvacuationMap(props: Props) {
       const blocked = segmentRisk(road, snapshot.hazards).blocked;
       const color = blocked ? '#b8322b' : '#a16207';
       const label = document.createElement('span');
-      label.textContent = `${road.name} — ${blocked ? 'Blocked' : 'Affected'}${reports.length ? ' · ' + reports.map((h) => h.hazard_type).join(', ') : ''}`;
+      label.textContent = `${road.name} — ${t(blocked ? 'Blocked' : 'Affected')}${reports.length ? ' · ' + reports.map((h) => t(h.hazard_type)).join(', ') : ''}`;
       const popup = document.createElement('section');
       const title = document.createElement('strong');
       title.textContent = label.textContent;
       popup.append(title);
       for (const report of reports) {
         const detail = document.createElement('p');
-        detail.textContent = `${report.hazard_type} · ${Math.round(report.severity * 100)}% severity. ${report.notes}`;
+        detail.textContent = `${t(report.hazard_type)} · ${Math.round(report.severity * 100)}%. ${report.notes}`;
         popup.append(detail);
       }
       const segment = L.geoJSON(road.geometry, {
@@ -160,9 +179,9 @@ export default function EvacuationMap(props: Props) {
       const marker = L.marker([lat, lng], {
         icon: icon(
           shelterHouse,
-          status === 'Full' || status === 'Closed' ? 'pin-full' : 'pin-shelter',
+          ['Full', 'Closed', 'Not accepting'].includes(status) ? 'pin-full' : 'pin-shelter',
         ),
-        title: `${s.name}, ${status}`,
+        title: `${s.name}, ${t(status)}`,
         keyboard: true,
       });
       marker.on('click', () => latest.current.onShelter(s.id));
@@ -171,7 +190,11 @@ export default function EvacuationMap(props: Props) {
     if (route && route.coordinates.length > 1) {
       const latLngs = route.coordinates.map(([lng, lat]) => [lat, lng] as L.LatLngTuple);
       L.polyline(latLngs, { color: '#fff', weight: 9 }).addTo(group);
-      L.polyline(latLngs, { color: props.navigating ? '#1265dd' : '#17744d', weight: props.navigating ? 7 : 5, className: 'evacuation-route' }).addTo(group);
+      L.polyline(latLngs, {
+        color: props.navigating ? '#1265dd' : '#17744d',
+        weight: props.navigating ? 7 : 5,
+        className: 'evacuation-route',
+      }).addTo(group);
       map.current?.fitBounds(L.latLngBounds(latLngs), {
         padding: [65, 65],
         maxZoom: 15,
@@ -181,9 +204,18 @@ export default function EvacuationMap(props: Props) {
     if (origin)
       L.marker([origin[1], origin[0]], {
         icon: icon('<span></span>', 'pin-location'),
-        title: 'Your selected starting point',
+        title: t('Your selected starting point'),
       }).addTo(group);
-  }, [props.snapshot, props.origin, props.route, props.visible, props.boundaries, props.navigating, props.overview]);
+  }, [
+    props.snapshot,
+    props.origin,
+    props.route,
+    props.visible,
+    props.boundaries,
+    props.navigating,
+    props.overview,
+    t,
+  ]);
   useEffect(() => {
     if (props.origin && !props.route)
       map.current?.setView([props.origin[1], props.origin[0]], 15, { animate: false });

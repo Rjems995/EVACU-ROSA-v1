@@ -77,6 +77,8 @@ test('cached snapshot survives offline reload', async ({ page, context, browserN
           r.onerror = () => resolve(false);
         }),
     );
+    // Remove the mock before the outage so it cannot manufacture a successful live response.
+    await page.unroute('**/api/snapshot');
     if (proxy) await proxy.stop();
     else await context.setOffline(true);
     await page.reload();

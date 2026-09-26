@@ -10,16 +10,21 @@ const common = {
   barangay: z.string().trim().min(2).max(80),
 };
 export const schemas = {
-  assistance_requests: z.object({status: z.enum(['new', 'acknowledged', 'resolved'])}).strict(),
+  assistance_requests: z.object({ status: z.enum(['new', 'acknowledged', 'resolved']) }).strict(),
   evacuation_centers: z
     .object({
       ...common,
       capacity: z.number().int().positive().max(100000),
       occupancy: z.number().int().min(0).max(100000),
-      status: z.enum(['open', 'closed']),
+      status: z.enum(['open', 'closed', 'paused']),
       accessible: z.boolean(),
       amenities: z.array(z.string().max(80)).max(20),
       geometry: point,
+      entrance_verified: z.boolean().optional(),
+      water_status: z.enum(['unknown', 'adequate', 'low', 'unavailable']).optional(),
+      food_status: z.enum(['unknown', 'adequate', 'low', 'unavailable']).optional(),
+      medical_status: z.enum(['unknown', 'adequate', 'low', 'unavailable']).optional(),
+      operational_notes: z.string().trim().max(1000).optional(),
     })
     .refine((v) => v.occupancy <= v.capacity, 'Occupancy must not exceed capacity.'),
   roads: z.object({
@@ -54,11 +59,23 @@ export const schemas = {
     ),
 };
 export const routeInput = z.object({ origin: coordinate, accessibleOnly: z.boolean().optional() });
-export const batchHazardInput = schemas.road_hazards.omit({road_id:true}).extend({
-  road_ids: z.array(z.uuid()).min(1).max(100).refine(ids => new Set(ids).size === ids.length, 'Select each street only once.'),
-}).strict();
-export const assistanceInput = z.object({
-  id: z.uuid(), origin: coordinate, source: z.enum(['gps','selected']),
-  details: z.string().trim().max(500), contact: z.string().trim().max(120),
-  consent: z.literal(true),
-}).strict();
+export const batchHazardInput = schemas.road_hazards
+  .omit({ road_id: true })
+  .extend({
+    road_ids: z
+      .array(z.uuid())
+      .min(1)
+      .max(100)
+      .refine((ids) => new Set(ids).size === ids.length, 'Select each street only once.'),
+  })
+  .strict();
+export const assistanceInput = z
+  .object({
+    id: z.uuid(),
+    origin: coordinate,
+    source: z.enum(['gps', 'selected']),
+    details: z.string().trim().max(500),
+    contact: z.string().trim().max(120),
+    consent: z.literal(true),
+  })
+  .strict();
