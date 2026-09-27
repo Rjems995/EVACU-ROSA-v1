@@ -2060,6 +2060,37 @@ h1 > span {
 .coordinate-entry {
   font-size: 12px;
   color: var(--muted);
+  margin-top: 8px;
+}
+.start-section .routing-note {
+  justify-content: flex-start;
+  margin-top: 8px;
+  line-height: 1.5;
+}
+.assistance-request {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.assistance-request .accessibility-filter {
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  line-height: 1.5;
+  color: var(--ink);
+}
+.assistance-request .accessibility-filter input {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+}
+.assistance-request > .text-sm {
+  margin: 8px 0 0;
+  padding-left: 28px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
 }
 .coordinate-entry summary {
   min-height: 44px;
@@ -2248,6 +2279,110 @@ h1 > span {
   }
   .topbar .admin-link svg {
     display: none;
+  }
+}
+/* Keep emergency actions readable while reducing surrounding whitespace. */
+.app-main {
+  padding-top: 8px;
+}
+.page-heading {
+  margin-bottom: 8px;
+  min-height: 44px;
+}
+.page-heading .eyebrow {
+  display: none;
+}
+.page-heading h1 {
+  font-size: 20px;
+  line-height: 1.25;
+}
+.page-heading p:not(.eyebrow) {
+  display: none;
+}
+.page-heading .help-button {
+  min-height: 44px;
+  padding: 8px 12px;
+}
+.start-section {
+  padding: 12px;
+}
+.start-section .section-kicker {
+  margin-bottom: 6px;
+}
+.start-section h2 {
+  font-size: 18px;
+  margin-bottom: 8px;
+}
+.location-field {
+  padding: 8px 10px;
+}
+.location-actions {
+  margin: 0;
+}
+.transport-picker {
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.transport-options {
+  gap: 6px;
+}
+.transport-option > span {
+  padding: 8px;
+  min-height: 44px;
+}
+.emergency-instruction {
+  margin: 8px 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.start-section .routing-note {
+  font-size: 13px;
+  margin-top: 6px;
+}
+.shelter-cards {
+  padding: 6px 12px 12px;
+}
+.shelter-card {
+  padding: 10px;
+  margin-bottom: 8px;
+}
+.shelter-card .recommended {
+  margin-bottom: 4px;
+}
+.results-heading {
+  margin: 12px 12px 8px;
+}
+.search-field {
+  margin-inline: 12px;
+}
+.result-tabs {
+  padding-inline: 12px;
+}
+.overview-grid {
+  margin-block: 12px;
+  gap: 8px;
+}
+.overview-grid article {
+  padding: 10px;
+}
+@media (max-width: 700px) {
+  .app-main {
+    padding-top: 8px;
+  }
+  .page-heading {
+    margin-bottom: 8px;
+  }
+  .system-bar {
+    min-height: 28px;
+    padding-block: 4px;
+    letter-spacing: 0.3px;
+  }
+  .map-toolbar {
+    min-height: 48px;
+    padding: 2px 12px;
+  }
+  .map-toolbar .layer-button {
+    min-height: 44px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
