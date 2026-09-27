@@ -336,16 +336,12 @@ export default function PublicApp() {
             </Link>
           </aside>
         )}
-        {(offline || cached || (!snapshot?.demo && age > 15)) && (
+        {(offline || cached) && (
           <aside className="offline-banner" role="status">
             <WifiOff size={20} />
             <span>
               <strong>
-                {offline
-                  ? t('You’re offline.')
-                  : cached
-                    ? t('Live updates unavailable.')
-                    : t('Data may be out of date.')}
+                {offline ? t('You’re offline.') : t('Live updates unavailable.')}
               </strong>{' '}
               {snapshot
                 ? language === 'fil'
