@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import BrandLogo from '@/components/brand-logo';
 import TransportIcon from '@/components/transport-icon';
+import VoiceDirections from '@/components/voice-directions';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight,
@@ -340,9 +341,7 @@ export default function PublicApp() {
           <aside className="offline-banner" role="status">
             <WifiOff size={20} />
             <span>
-              <strong>
-                {offline ? t('You’re offline.') : t('Live updates unavailable.')}
-              </strong>{' '}
+              <strong>{offline ? t('You’re offline.') : t('Live updates unavailable.')}</strong>{' '}
               {snapshot
                 ? language === 'fil'
                   ? `Huling datos — ${age.toLocaleString()} minuto na ang nakalipas.`
@@ -621,7 +620,7 @@ export default function PublicApp() {
               <div className="navigation-heading">
                 <Navigation size={28} aria-hidden="true" />
                 <div>
-                  <small>{snapshot?.demo ? 'SAMPLE WALKING ROUTE' : t('WALKING ROUTE')}</small>
+                  <small>{t(transportProfiles[transport].label)}</small>
                   <h2>{activeRoute.shelter.name}</h2>
                   <p>
                     Santa Rosa · {activeRoute.route.minutes} min ·{' '}
@@ -805,6 +804,28 @@ export default function PublicApp() {
                 </button>
                 {navigating && (
                   <div className="navigation-directions">
+                    <VoiceDirections
+                      language={language}
+                      instructions={[
+                        language === 'fil'
+                          ? `Gabay papunta sa ${activeRoute.shelter.name}. Walang live na pagsubaybay sa lokasyon.`
+                          : `Route overview to ${activeRoute.shelter.name}. Your position is not tracked live.`,
+                        ...activeRoute.route.roadIds
+                          .map(
+                            (id) =>
+                              snapshot?.roads.find((road) => road.id === id)?.name ||
+                              (language === 'fil' ? 'kalsadang walang pangalan' : 'unnamed street'),
+                          )
+                          .filter((name, index, names) => index === 0 || name !== names[index - 1])
+                          .map(
+                            (name, index) =>
+                              `${index === 0 ? t('Start on') : t('Continue onto')} ${name}.`,
+                          ),
+                        language === 'fil'
+                          ? `Lumapit sa ${activeRoute.shelter.name}. Tiyakin ang pasukan pagdating.`
+                          : `Approach ${activeRoute.shelter.name}. Check the shelter entrance locally.`,
+                      ]}
+                    />
                     <button className="secondary-button" onClick={() => setOverview((n) => n + 1)}>
                       {t('Show entire route')}{' '}
                     </button>

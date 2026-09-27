@@ -897,6 +897,19 @@ h1 > span {
   margin: 0 0 0.6rem;
   padding: 0.4rem 0;
 }
+.voice-directions {
+  margin-bottom: 12px;
+}
+.voice-directions button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}
+.voice-directions p {
+  font-size: 13px;
+  margin: 6px 0;
+}
 .navigation-directions {
   font-size: 0.85rem;
 }
