@@ -75,6 +75,14 @@ export default function PublicApp() {
   const [liveFix, setLiveFix] = useState<LiveFix | null>(null);
   const [arrived, setArrived] = useState('');
   const [overview, setOverview] = useState(0);
+  useEffect(() => {
+    if (picking) {
+      document.getElementById('evacuation-map-stage')?.scrollIntoView({
+        behavior: 'instant',
+        block: 'start',
+      });
+    }
+  }, [picking]);
   const [transport, setTransport] = useState<TransportMode>('walking');
   useEffect(() => {
     if (!navigating) return;
@@ -382,7 +390,7 @@ export default function PublicApp() {
                 <span className="step-dot">1</span> {t('YOUR STARTING POINT')}{' '}
               </div>
               <h2>{t('Where are you now?')} </h2>
-              <button className="location-field" onClick={() => setPicking(!picking)}>
+              <button className="location-field" aria-pressed={picking} aria-controls="evacuation-map-stage" onClick={() => setPicking(!picking)}>
                 <MapPin size={20} />
                 <span>
                   {locating ? t('Finding your current location…') : t(locationName)}
@@ -666,7 +674,7 @@ export default function PublicApp() {
                 <span>{t('Boundaries')} </span>
               </button>
             </div>
-            <div className="map-stage">
+            <div id="evacuation-map-stage" className="map-stage">
               {snapshot ? (
                 <Map
                   liveFix={navigating ? liveFix : null}

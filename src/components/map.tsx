@@ -36,6 +36,9 @@ export default function EvacuationMap(props: Props) {
   const streetRenderer = useRef<L.Canvas | null>(null);
   latest.current = props;
   useEffect(() => {
+    element.current?.classList.toggle('is-picking', props.picking);
+  }, [props.picking]);
+  useEffect(() => {
     if (!element.current) return;
     const instance = L.map(element.current, { zoomControl: false, maxBoundsViscosity: 1 }).setView(
       [14.297, 121.109],
@@ -249,7 +252,7 @@ export default function EvacuationMap(props: Props) {
   return (
     <div
       ref={element}
-      className={`map-canvas ${props.picking ? 'is-picking' : ''}`}
+      className="map-canvas"
       role="region"
       aria-label="Evacuation map. Use the shelter list for equivalent keyboard-accessible route information."
     />
