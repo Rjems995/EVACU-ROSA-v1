@@ -105,8 +105,8 @@ export default function VoiceDirections({
             : 'Voice is unavailable in this browser.'
           : message ||
             (fil
-              ? 'Binabasa ang buong ruta. Walang live na pagsubaybay sa lokasyon.'
-              : 'Reads the route overview. No live position tracking.')}
+              ? 'Binabasa ang buong ruta, hindi awtomatikong abiso sa bawat liko.'
+              : 'Reads the route overview, not automatic turn-by-turn prompts.')}
       </p>
     </div>
   );

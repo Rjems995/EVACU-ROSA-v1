@@ -5,6 +5,7 @@ import Link from 'next/link';
 import BrandLogo from '@/components/brand-logo';
 import TransportIcon from '@/components/transport-icon';
 import VoiceDirections from '@/components/voice-directions';
+import LiveNavigation, { type LiveFix } from '@/components/live-navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight,
@@ -71,6 +72,8 @@ export default function PublicApp() {
     [help, setHelp] = useState(false);
   const [clock, setClock] = useState(Date.now());
   const [navigating, setNavigating] = useState(false);
+  const [liveFix, setLiveFix] = useState<LiveFix | null>(null);
+  const [arrived, setArrived] = useState('');
   const [overview, setOverview] = useState(0);
   const [transport, setTransport] = useState<TransportMode>('walking');
   useEffect(() => {
@@ -298,6 +301,16 @@ export default function PublicApp() {
         </span>
       </div>
       <main id="main" className="app-main">
+        {arrived && (
+          <p role="status" className="inline-warning">
+            {language === 'fil'
+              ? `Kinumpirma ang pagdating sa ${arrived}. Itinigil ang gabay.`
+              : `Arrival confirmed at ${arrived}. Navigation stopped.`}{' '}
+            <button className="text-button" onClick={() => setArrived('')}>
+              {language === 'fil' ? 'Isara' : 'Dismiss'}
+            </button>
+          </p>
+        )}
         <section className="page-heading" aria-labelledby="page-title">
           <div>
             <p className="eyebrow">{t('YOUR WAY TO SAFETY')} </p>
@@ -656,6 +669,7 @@ export default function PublicApp() {
             <div className="map-stage">
               {snapshot ? (
                 <Map
+                  liveFix={navigating ? liveFix : null}
                   snapshot={snapshot}
                   origin={origin}
                   route={activeRoute?.route || null}
@@ -793,6 +807,7 @@ export default function PublicApp() {
                   id="open-navigation"
                   className="primary-button navigation-toggle"
                   onClick={() => {
+                    setArrived('');
                     setPicking(false);
                     setNavigating(true);
                     setOverview((n) => n + 1);
@@ -804,12 +819,24 @@ export default function PublicApp() {
                 </button>
                 {navigating && (
                   <div className="navigation-directions">
+                    <LiveNavigation
+                      route={activeRoute.route}
+                      destination={activeRoute.shelter.geometry.coordinates as Position}
+                      language={language}
+                      onFix={setLiveFix}
+                      onArrive={() => {
+                        setArrived(activeRoute.shelter.name);
+                        setNavigating(false);
+                        setRequested(false);
+                        setLiveFix(null);
+                      }}
+                    />
                     <VoiceDirections
                       language={language}
                       instructions={[
                         language === 'fil'
-                          ? `Gabay papunta sa ${activeRoute.shelter.name}. Walang live na pagsubaybay sa lokasyon.`
-                          : `Route overview to ${activeRoute.shelter.name}. Your position is not tracked live.`,
+                          ? `Gabay papunta sa ${activeRoute.shelter.name}. Buong ruta ang babasahin, hindi awtomatikong abiso sa bawat liko.`
+                          : `Route overview to ${activeRoute.shelter.name}. These are not automatic turn-by-turn prompts.`,
                         ...activeRoute.route.roadIds
                           .map(
                             (id) =>
@@ -831,9 +858,9 @@ export default function PublicApp() {
                     </button>
                     <p>
                       {snapshot?.demo ? 'Sample preview only. ' : ''}
-                      {t(
-                        'Directions from your selected starting point; position is not tracked live.',
-                      )}{' '}
+                      {language === 'fil'
+                        ? 'Ang ruta ay mula sa napiling simula. Ipinapakita ang GPS sa mapa kapag magagamit.'
+                        : 'Route directions start at your selected point. Live GPS is shown on the map when available.'}
                     </p>
                     <h4>{t('Streets to the shelter')} </h4>
                     <ol>

@@ -8,6 +8,7 @@ import { useLanguage } from './language-provider';
 type Props = {
   snapshot: Snapshot;
   origin: Position | null;
+  liveFix?: { position: Position; accuracy: number } | null;
   route: Route | null;
   visible: HazardType[];
   boundaries: boolean;
@@ -220,6 +221,31 @@ export default function EvacuationMap(props: Props) {
     if (props.origin && !props.route)
       map.current?.setView([props.origin[1], props.origin[0]], 15, { animate: false });
   }, [props.origin]);
+  useEffect(() => {
+    const instance = map.current;
+    const fix = props.liveFix;
+    if (!instance || !fix || !props.navigating) return;
+    const point: L.LatLngTuple = [fix.position[1], fix.position[0]];
+    const accuracy = L.circle(point, {
+      radius: fix.accuracy,
+      color: '#1265dd',
+      weight: 1,
+      fillOpacity: 0.1,
+    }).addTo(instance);
+    const marker = L.circleMarker(point, {
+      radius: 8,
+      color: '#fff',
+      weight: 3,
+      fillColor: '#1265dd',
+      fillOpacity: 1,
+      className: 'live-gps-marker',
+    }).addTo(instance);
+    instance.panTo(point, { animate: false });
+    return () => {
+      accuracy.remove();
+      marker.remove();
+    };
+  }, [props.liveFix, props.navigating]);
   return (
     <div
       ref={element}
