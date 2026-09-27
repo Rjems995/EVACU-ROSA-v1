@@ -3,6 +3,7 @@ import { useLanguage, LanguageToggle } from './language-provider';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import BrandLogo from '@/components/brand-logo';
+import TransportIcon from '@/components/transport-icon';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight,
@@ -399,27 +400,34 @@ export default function PublicApp() {
                   </button>
                 )}
               </div>
-              <label className="transport-picker">
-                <span>{t('Mode of transportation')}</span>
-                <select
-                  value={transport}
-                  onChange={(event) => {
-                    setTransport(event.target.value as TransportMode);
-                    setNavigating(false);
-                  }}
-                >
+              <fieldset className="transport-picker">
+                <legend>{t('Mode of transportation')}</legend>
+                <div className="transport-options">
                   {transportModes.map((mode) => (
-                    <option key={mode} value={mode}>
-                      {t(transportProfiles[mode].label)}
-                    </option>
+                    <label className="transport-option" key={mode}>
+                      <input
+                        type="radio"
+                        name="transport"
+                        value={mode}
+                        checked={transport === mode}
+                        onChange={() => {
+                          setTransport(mode);
+                          setNavigating(false);
+                        }}
+                      />
+                      <span>
+                        <TransportIcon mode={mode} />
+                        {t(transportProfiles[mode].label)}
+                      </span>
+                    </label>
                   ))}
-                </select>
+                </div>
                 <small>
                   {t(
                     'Changes estimated travel time. Vehicle access restrictions are not yet verified.',
                   )}
                 </small>
-              </label>
+              </fieldset>
               <button
                 className="primary-button desktop-primary"
                 onClick={findShelter}

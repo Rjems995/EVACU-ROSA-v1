@@ -50,20 +50,56 @@
   }
 }
 .transport-picker {
+  min-width: 0;
+  padding: 0;
+  border: 0;
   display: grid;
   gap: 8px;
   margin-bottom: 18px;
   font-size: 14px;
   font-weight: 600;
 }
-.transport-picker select {
-  width: 100%;
-  min-height: 44px;
-  padding: 10px 12px;
+.transport-picker legend {
+  margin-bottom: 8px;
+}
+.transport-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.transport-option {
+  position: relative;
+  cursor: pointer;
+}
+.transport-option input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+.transport-option > span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
   color: var(--ink);
+}
+.transport-option svg {
+  flex-shrink: 0;
+}
+.transport-option input:checked + span {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  color: var(--brand);
+  box-shadow: inset 0 0 0 1px var(--brand);
+}
+.transport-option input:focus-visible + span {
+  outline: 2px solid var(--brand);
+  outline-offset: 3px;
 }
 .transport-picker small {
   color: var(--muted);
