@@ -1793,7 +1793,12 @@ h1 > span {
     display: none;
   }
   .page-heading {
-    align-items: flex-start;
+    align-items: center;
+    margin-bottom: 0.75rem;
+  }
+  .page-heading .eyebrow,
+  .page-heading p:not(.eyebrow) {
+    display: none;
   }
   .page-heading p:not(.eyebrow) {
     font-size: 13px;
@@ -1810,7 +1815,7 @@ h1 > span {
     font-size: 0 !important;
   }
   .page-heading h1 {
-    font-size: 29px;
+    font-size: 20px;
     max-width: 320px;
   }
   .demo-banner {
@@ -1830,7 +1835,7 @@ h1 > span {
     display: contents;
   }
   .start-section {
-    order: 0;
+    order: 1;
     border-bottom: 1px solid var(--line);
   }
   .start-section h2 {
@@ -1864,10 +1869,13 @@ h1 > span {
     font-size: 11px;
   }
   .map-panel {
-    order: 1;
+    order: 0;
+  }
+  .map-panel:not(.navigation-view) {
+    margin-inline: -1rem;
   }
   .map-stage {
-    min-height: 420px;
+    min-height: max(480px, 85svh);
   }
   .map-toolbar {
     padding: 0.4rem 1rem;
