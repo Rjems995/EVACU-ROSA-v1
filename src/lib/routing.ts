@@ -1,4 +1,5 @@
 import { fuzzyRisk } from './fuzzy';
+import { transportProfiles, type TransportMode } from './transport';
 import type { Hazard, Position, RankedShelter, Road, Route, Shelter, Snapshot } from './types';
 export function distance(a: Position, b: Position): number {
   const rad = Math.PI / 180,
@@ -95,6 +96,7 @@ export function findRoute(
   origin: Position,
   destination: Position,
   graph = buildGraph(roads, hazards),
+  mode: TransportMode = 'walking',
 ): Route | null {
   const { nodes, edges } = graph;
   const nearest = (pos: Position) =>
@@ -141,7 +143,10 @@ export function findRoute(
         distance: total,
         cost: g.get(current)!,
         risk,
-        minutes: Math.max(1, Math.ceil((total / 65) * (1 + risk / 100))),
+        minutes: Math.max(
+          1,
+          Math.ceil((total / transportProfiles[mode].metersPerMinute) * (1 + risk / 100)),
+        ),
         start: start[1],
         end: goal[1],
         snapDistance: distance(origin, start[1]),
@@ -173,6 +178,7 @@ export function rankShelters(
   snapshot: Snapshot,
   origin: Position,
   accessibleOnly = false,
+  mode: TransportMode = 'walking',
 ): RankedShelter[] {
   const ranked: RankedShelter[] = [];
   const graph = buildGraph(snapshot.roads, snapshot.hazards);
@@ -195,7 +201,7 @@ export function rankShelters(
           return h.severity * Math.max(0, 1 - nearest / 1000);
         }),
     );
-    const route = findRoute(snapshot.roads, snapshot.hazards, origin, location, graph);
+    const route = findRoute(snapshot.roads, snapshot.hazards, origin, location, graph, mode);
     if (route)
       ranked.push({
         shelter,

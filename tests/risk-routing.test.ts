@@ -3,6 +3,8 @@ import { fuzzyRisk, membership } from '../src/lib/fuzzy';
 import { demoSnapshot, DEMO_ORIGIN } from '../src/lib/demo';
 import { findRoute, rankShelters, segmentRisk, shelterStatus } from '../src/lib/routing';
 import type { Hazard, Position, Road } from '../src/lib/types';
+import { transportModes } from '../src/lib/transport';
+import { routeInput } from '../src/lib/validation';
 const positions: Record<string, Position> = {
   a: [121, 14],
   b: [121.001, 14],
@@ -50,6 +52,22 @@ describe('Mamdani risk scoring', () => {
   });
 });
 describe('risk-weighted A*', () => {
+  it('changes travel estimates without bypassing closures or one-way restrictions', () => {
+    const estimates = transportModes.map((mode) => {
+      const road = edge('a', 'b');
+      expect(
+        findRoute([{ ...road, blocked: true }], [], positions.a, positions.b, undefined, mode),
+      ).toBeNull();
+      expect(
+        findRoute([{ ...road, oneway: true }], [], positions.b, positions.a, undefined, mode),
+      ).toBeNull();
+      return findRoute([road], [], positions.a, positions.b, undefined, mode)!.minutes;
+    });
+    expect(estimates[0]).toBeGreaterThan(estimates[1]);
+    expect(estimates.every((value) => Number.isFinite(value) && value >= 1)).toBe(true);
+    expect(routeInput.parse({ origin: positions.a }).mode).toBe('walking');
+    expect(routeInput.safeParse({ origin: positions.a, mode: 'plane' }).success).toBe(false);
+  });
   it('detours around a blocked road', () => {
     const roads = [
       edge('a', 'b', { blocked: true }),

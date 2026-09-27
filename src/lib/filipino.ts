@@ -1,5 +1,15 @@
 // Interface copy only. Street names, staff notes and place names stay as recorded.
 export const filipino: Record<string, string> = {
+  'Mode of transportation': 'Paraan ng paglalakbay',
+  Walking: 'Paglalakad',
+  Cycling: 'Bisikleta',
+  Motorcycle: 'Motorsiklo',
+  Car: 'Kotse',
+  'Estimated travel time': 'Tantiyang oras ng biyahe',
+  'Changes estimated travel time. Vehicle access restrictions are not yet verified.':
+    'Binabago ang tantiyang oras ng biyahe. Hindi pa nasusuri ang mga limitasyon sa pagdaan ng sasakyan.',
+  'Estimates exclude live traffic. All modes use the same road network and recorded one-way restrictions; vehicle access, parking and road width are not verified.':
+    'Hindi kasama ang kasalukuyang trapiko sa tantiya. Pareho ang mga kalsada at naitalang one-way na limitasyon para sa lahat; hindi pa nasusuri ang pagdaan ng sasakyan, paradahan at lapad ng kalsada.',
   'No matching reachable shelters. Change the starting point or filters.':
     'Walang tugmang masisilungang mararating. Suriin ang lokasyon o mga filter.',
   'Waiting for CDRRMO to publish verified shelters.':

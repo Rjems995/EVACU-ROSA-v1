@@ -1,4 +1,4 @@
-const CACHE = 'evacu-rosa-shell-v5';
+const CACHE = 'evacu-rosa-shell-v6';
 self.addEventListener('install', (event) => {
   event.waitUntil(
     (async () => {

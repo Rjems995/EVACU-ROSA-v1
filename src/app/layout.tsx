@@ -11,6 +11,28 @@ export const viewport: Viewport = { width: 'device-width', initialScale: 1, them
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
+      <head>
+        {process.env.NODE_ENV === 'development' && (
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `
+            (async () => {
+              if (!('serviceWorker' in navigator)) return;
+              try {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                const ours = registrations.filter(r => [r.active, r.waiting, r.installing].some(w => w && new URL(w.scriptURL).pathname === '/sw.js'));
+                const controlled = navigator.serviceWorker.controller && new URL(navigator.serviceWorker.controller.scriptURL).pathname === '/sw.js';
+                await Promise.all(ours.map(r => r.unregister()));
+                const keys = await caches.keys();
+                await Promise.all(keys.filter(k => k.startsWith('evacu-rosa-shell-')).map(k => caches.delete(k)));
+                if (controlled) location.reload();
+              } catch (error) { console.warn('Development offline-cache cleanup failed.', error); }
+            })();
+          `,
+            }}
+          />
+        )}
+      </head>
       <body>
         <a href="#main" className="skip-link">
           Skip to main content

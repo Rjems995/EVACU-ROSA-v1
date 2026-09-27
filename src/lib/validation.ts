@@ -58,7 +58,11 @@ export const schemas = {
       'Barangay administrators need an assigned barangay.',
     ),
 };
-export const routeInput = z.object({ origin: coordinate, accessibleOnly: z.boolean().optional() });
+export const routeInput = z.object({
+  origin: coordinate,
+  accessibleOnly: z.boolean().optional(),
+  mode: z.enum(['walking', 'cycling', 'motorcycle', 'car']).default('walking'),
+});
 export const batchHazardInput = schemas.road_hazards
   .omit({ road_id: true })
   .extend({

@@ -16,7 +16,8 @@ export async function POST(request: Request) {
   try {
     const s = await getSnapshot();
     return Response.json({
-      routes: rankShelters(s, body.data.origin, body.data.accessibleOnly),
+      routes: rankShelters(s, body.data.origin, body.data.accessibleOnly, body.data.mode),
+      mode: body.data.mode,
       demo: s.demo,
       syncedAt: s.syncedAt,
     });

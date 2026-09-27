@@ -49,6 +49,28 @@
     font-size: 12px;
   }
 }
+.transport-picker {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 18px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.transport-picker select {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.transport-picker small {
+  color: var(--muted);
+  font-weight: 400;
+  line-height: 1.5;
+}
+
 @theme {
   --color-safe: #176847;
   --color-danger: #b8322b;

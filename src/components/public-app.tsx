@@ -11,7 +11,7 @@ import {
   ChevronDown,
   ChevronRight,
   Flame,
-  Footprints,
+  Clock,
   House,
   Info,
   Layers,
@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import { DEMO_ORIGIN } from '@/lib/constants';
 import { rankShelters, segmentRisk, shelterStatus } from '@/lib/routing';
+import { transportModes, transportProfiles, type TransportMode } from '@/lib/transport';
 import { useSnapshot } from '@/lib/use-snapshot';
 import AssistanceRequest from './assistance-request';
 import ShelterOperations from './shelter-operations';
@@ -69,6 +70,7 @@ export default function PublicApp() {
   const [clock, setClock] = useState(Date.now());
   const [navigating, setNavigating] = useState(false);
   const [overview, setOverview] = useState(0);
+  const [transport, setTransport] = useState<TransportMode>('walking');
   useEffect(() => {
     if (!navigating) return;
     const previous = document.body.style.overflow;
@@ -113,8 +115,9 @@ export default function PublicApp() {
     return origin[0] >= west && origin[0] <= east && origin[1] >= south && origin[1] <= north;
   }, [snapshot, origin]);
   const ranked = useMemo(
-    () => (snapshot && origin && inCoverage ? rankShelters(snapshot, origin, accessible) : []),
-    [snapshot, origin, accessible, inCoverage],
+    () =>
+      snapshot && origin && inCoverage ? rankShelters(snapshot, origin, accessible, transport) : [],
+    [snapshot, origin, accessible, inCoverage, transport],
   );
   const activeRoute = requested
     ? ranked.find((r) => r.shelter.id === selected) || ranked[0]
@@ -396,6 +399,27 @@ export default function PublicApp() {
                   </button>
                 )}
               </div>
+              <label className="transport-picker">
+                <span>{t('Mode of transportation')}</span>
+                <select
+                  value={transport}
+                  onChange={(event) => {
+                    setTransport(event.target.value as TransportMode);
+                    setNavigating(false);
+                  }}
+                >
+                  {transportModes.map((mode) => (
+                    <option key={mode} value={mode}>
+                      {t(transportProfiles[mode].label)}
+                    </option>
+                  ))}
+                </select>
+                <small>
+                  {t(
+                    'Changes estimated travel time. Vehicle access restrictions are not yet verified.',
+                  )}
+                </small>
+              </label>
               <button
                 className="primary-button desktop-primary"
                 onClick={findShelter}
@@ -706,7 +730,7 @@ export default function PublicApp() {
                 </span>
                 <span>
                   <i className="legend-route" />
-                  {navigating ? t('Walking route') : t('Lower-risk route')}
+                  {t(transportProfiles[transport].label)} · {t('Lower-risk route')}
                 </span>
                 <span>
                   <i className="legend-hazard" />
@@ -741,9 +765,11 @@ export default function PublicApp() {
                 </div>
                 <div className="route-metrics">
                   <span>
-                    <Footprints size={19} />
+                    <Clock size={19} />
                     <strong>{activeRoute.route.minutes} min</strong>
-                    <small>{t('Est. walking time')} </small>
+                    <small>
+                      {t('Estimated travel time')} · {t(transportProfiles[transport].label)}
+                    </small>
                   </span>
                   <span>
                     <RouteIcon size={19} />
@@ -830,8 +856,11 @@ export default function PublicApp() {
                   <summary>{t('Route details and limitations')} </summary>
                   <p>
                     {language === 'fil'
-                      ? `Nagsisimula ang ruta ${Math.round(activeRoute.route.snapDistance)} m mula sa napiling lokasyon, sa pinakamalapit na punto ng kalsada. Hindi pa nasuri ang paglapit mula sa lokasyon mo. Tantiyang oras lamang ang ipinapakita, batay sa 65 m/min at iniulat na panganib.`
-                      : `Starts ${Math.round(activeRoute.route.snapDistance)} m from your selected point at the nearest road-network node. The approach from your position is not assessed. ETA assumes walking at 65 m/min, adjusted for recorded risk.`}{' '}
+                      ? `Nagsisimula ang ruta ${Math.round(activeRoute.route.snapDistance)} m mula sa napiling lokasyon, sa pinakamalapit na punto ng kalsada. Hindi pa nasuri ang paglapit mula sa lokasyon mo. Tantiyang oras lamang ito, batay sa ${transportProfiles[transport].metersPerMinute} m/min at iniulat na panganib.`
+                      : `Starts ${Math.round(activeRoute.route.snapDistance)} m from your selected point at the nearest road-network node. The approach from your position is not assessed. ETA assumes ${transportProfiles[transport].metersPerMinute} m/min, adjusted for recorded risk.`}{' '}
+                    {t(
+                      'Estimates exclude live traffic. All modes use the same road network and recorded one-way restrictions; vehicle access, parking and road width are not verified.',
+                    )}{' '}
                     {t(
                       activeRoute.shelter.entrance_verified
                         ? 'Entrance checked by staff'
@@ -984,7 +1013,7 @@ function ShelterCard({
       {rank && (
         <div className="shelter-distance">
           <span>
-            <Footprints size={14} />
+            <Clock size={14} />
             {rank.route.minutes} min
           </span>
           <span>{(rank.route.distance / 1000).toFixed(1)} km</span>
