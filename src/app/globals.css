@@ -35,12 +35,6 @@
   min-height: 44px;
 }
 @media (max-width: 480px) {
-  .topbar {
-    flex-wrap: wrap;
-    padding-top: 10px;
-    padding-bottom: 10px;
-    row-gap: 8px;
-  }
   .header-actions {
     gap: 6px;
   }
@@ -1758,7 +1752,7 @@ h1 > span {
 }
 @media (max-width: 700px) {
   .app-main {
-    padding: 1.4rem 1rem 0;
+    padding: 0.75rem 1rem 0;
   }
   .topbar {
     padding: 0 1rem;
@@ -1794,7 +1788,8 @@ h1 > span {
   }
   .page-heading {
     align-items: center;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.5rem;
+    gap: 0.5rem;
   }
   .page-heading .eyebrow,
   .page-heading p:not(.eyebrow) {
@@ -1830,6 +1825,9 @@ h1 > span {
     display: flex;
     flex-direction: column;
     overflow: visible;
+    margin-inline: -1rem;
+    border-inline: 0;
+    border-radius: 0;
   }
   .finder-panel {
     display: contents;
@@ -1872,7 +1870,7 @@ h1 > span {
     order: 0;
   }
   .map-panel:not(.navigation-view) {
-    margin-inline: -1rem;
+    margin-inline: 0;
   }
   .map-stage {
     min-height: max(480px, 85svh);
@@ -2213,6 +2211,43 @@ h1 > span {
   }
   .location-actions .text-button {
     font-size: 13px;
+  }
+}
+@media (max-width: 700px) {
+  .topbar {
+    min-height: 60px;
+    padding: 6px 12px;
+    gap: 6px;
+    flex-wrap: nowrap;
+  }
+  .topbar .brand {
+    gap: 4px;
+    font-size: 13px;
+    letter-spacing: -0.4px;
+  }
+  .topbar .brand-logo {
+    width: 32px;
+    height: 32px;
+  }
+  .topbar .brand small {
+    display: none;
+  }
+  .topbar .header-actions {
+    gap: 2px;
+  }
+  .topbar .language-control select {
+    width: 78px;
+    padding: 4px;
+    font-size: 11px;
+  }
+  .topbar .admin-link {
+    padding-left: 4px;
+    font-size: 11px;
+    min-width: 40px;
+    justify-content: center;
+  }
+  .topbar .admin-link svg {
+    display: none;
   }
 }
 @media (prefers-reduced-motion: reduce) {
