@@ -4,7 +4,10 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import BrandLogo from '@/components/brand-logo';
 import TransportIcon from '@/components/transport-icon';
-import VoiceDirections from '@/components/voice-directions';
+import TurnGuidance from '@/components/turn-guidance';
+import OfflineDownload from '@/components/offline-download';
+import { useRouteAlert } from '@/lib/use-route-alert';
+import { routeProgress } from '@/lib/navigation-guidance';
 import LiveNavigation, { type LiveFix } from '@/components/live-navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -74,21 +77,10 @@ export default function PublicApp() {
   const [navigating, setNavigating] = useState(false);
   const [liveFix, setLiveFix] = useState<LiveFix | null>(null);
   const [arrived, setArrived] = useState('');
+  const routeAlerts = useRouteAlert();
   const [navigationOrigin, setNavigationOrigin] = useState<Position | null>(null);
   const [rerouteMessage, setRerouteMessage] = useState('');
   const lastNavigationRoute = useRef<{ shelter: string; roads: string[] } | null>(null);
-  useEffect(() => {
-    if (!navigating) {
-      setNavigationOrigin(null);
-      lastNavigationRoute.current = null;
-      return;
-    }
-    if (liveFix && liveFix.accuracy <= 30) {
-      setNavigationOrigin((previous) =>
-        !previous || distance(previous, liveFix.position) >= 30 ? liveFix.position : previous,
-      );
-    }
-  }, [navigating, liveFix]);
   const [overview, setOverview] = useState(0);
   useEffect(() => {
     if (picking) {
@@ -157,9 +149,27 @@ export default function PublicApp() {
   const activeRoute = requested
     ? ranked.find((r) => r.shelter.id === selected) || ranked[0]
     : undefined;
+  const lastRoutingSnapshot = useRef(snapshot);
+  useEffect(() => {
+    const dataChanged = lastRoutingSnapshot.current !== snapshot;
+    lastRoutingSnapshot.current = snapshot;
+    if (!navigating) {
+      setNavigationOrigin(null);
+      lastNavigationRoute.current = null;
+      return;
+    }
+    if (liveFix && liveFix.accuracy <= 30) {
+      const offRoute = activeRoute && routeProgress(activeRoute.route, liveFix.position).away > 35;
+      if (dataChanged || offRoute)
+        setNavigationOrigin((previous) =>
+          !previous || distance(previous, liveFix.position) >= 30 ? liveFix.position : previous,
+        );
+    }
+  }, [navigating, liveFix, snapshot, activeRoute]);
   useEffect(() => {
     if (!navigating) return;
     if (!activeRoute) {
+      routeAlerts.notify();
       setNavigating(false);
       setRequested(false);
       setRerouteMessage(
@@ -174,7 +184,7 @@ export default function PublicApp() {
     if (
       previous &&
       (previous.shelter !== activeRoute.shelter.id ||
-        roads.some((id) => !previous.roads.includes(id)))
+        previous.roads.slice(-roads.length).join('|') !== roads.join('|'))
     ) {
       setRerouteMessage(
         language === 'fil'
@@ -182,9 +192,10 @@ export default function PublicApp() {
           : `Route updated to ${activeRoute.shelter.name}. Check the new directions.`,
       );
       setSelected(activeRoute.shelter.id);
+      routeAlerts.notify();
     }
     lastNavigationRoute.current = { shelter: activeRoute.shelter.id, roads };
-  }, [activeRoute, navigating, language]);
+  }, [activeRoute, navigating, language, routeAlerts.notify]);
   const shelterList = useMemo(() => {
     if (!snapshot) return [];
     const list = origin
@@ -531,6 +542,12 @@ export default function PublicApp() {
                 </div>
               )}
               <CoordinateEntry onChoose={choose} />
+              <OfflineDownload
+                selected={activeRoute}
+                snapshot={snapshot}
+                mode={transport}
+                language={language}
+              />
               {origin && (
                 <AssistanceRequest
                   key={origin.join(',')}
@@ -886,6 +903,24 @@ export default function PublicApp() {
                 </button>
                 {navigating && (
                   <div className="navigation-directions">
+                    <button
+                      className="secondary-button"
+                      aria-pressed={routeAlerts.enabled}
+                      onClick={routeAlerts.toggle}
+                    >
+                      {language === 'fil'
+                        ? routeAlerts.enabled
+                          ? 'Patayin ang tunog at vibration'
+                          : 'Buksan ang tunog at vibration'
+                        : routeAlerts.enabled
+                          ? 'Sound and vibration on'
+                          : 'Enable sound and vibration'}
+                    </button>
+                    <small>
+                      {language === 'fil'
+                        ? 'Para sa pagbabago ng ruta. Depende sa device ang tunog at vibration.'
+                        : 'For route changes. Sound and vibration depend on device support.'}
+                    </small>
                     {rerouteMessage && (
                       <p role="status" className="inline-warning">
                         {rerouteMessage}
@@ -903,27 +938,12 @@ export default function PublicApp() {
                         setLiveFix(null);
                       }}
                     />
-                    <VoiceDirections
+                    <TurnGuidance
+                      key={activeRoute.shelter.id + transport}
+                      route={activeRoute.route}
+                      fix={liveFix}
                       language={language}
-                      instructions={[
-                        language === 'fil'
-                          ? `Gabay papunta sa ${activeRoute.shelter.name}. Buong ruta ang babasahin, hindi awtomatikong abiso sa bawat liko.`
-                          : `Route overview to ${activeRoute.shelter.name}. These are not automatic turn-by-turn prompts.`,
-                        ...activeRoute.route.roadIds
-                          .map(
-                            (id) =>
-                              snapshot?.roads.find((road) => road.id === id)?.name ||
-                              (language === 'fil' ? 'kalsadang walang pangalan' : 'unnamed street'),
-                          )
-                          .filter((name, index, names) => index === 0 || name !== names[index - 1])
-                          .map(
-                            (name, index) =>
-                              `${index === 0 ? t('Start on') : t('Continue onto')} ${name}.`,
-                          ),
-                        language === 'fil'
-                          ? `Lumapit sa ${activeRoute.shelter.name}. Tiyakin ang pasukan pagdating.`
-                          : `Approach ${activeRoute.shelter.name}. Check the shelter entrance locally.`,
-                      ]}
+                      alert={rerouteMessage}
                     />
                     <button className="secondary-button" onClick={() => setOverview((n) => n + 1)}>
                       {t('Show entire route')}{' '}

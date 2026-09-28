@@ -130,9 +130,12 @@ export function findRoute(
         cursor = entry.from;
       }
       const coordinates: Position[] = [start[1]];
+      const junctions: { index: number; street: string }[] = [];
       let total = 0,
         riskSum = 0;
       for (const edge of path) {
+        if (coordinates.length > 1)
+          junctions.push({ index: coordinates.length - 1, street: edge.road.name });
         const coords = [...edge.coordinates];
         if (edge.reverse) coords.reverse();
         coordinates.push(...coords.slice(1));
@@ -141,6 +144,7 @@ export function findRoute(
       }
       const risk = total ? riskSum / total : 0;
       return {
+        junctions,
         coordinates,
         roadIds: path.map((e) => e.road.id).filter((id, i, ids) => i === 0 || id !== ids[i - 1]),
         distance: total,

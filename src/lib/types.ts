@@ -58,6 +58,7 @@ export type Snapshot = {
 };
 export type Position = [number, number]; // longitude, latitude (GeoJSON order)
 export type Route = {
+  junctions?: { index: number; street: string }[];
   coordinates: Position[];
   roadIds: string[];
   distance: number;

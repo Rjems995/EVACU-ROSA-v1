@@ -4,6 +4,16 @@ test('navigation detours after a road closes and stops when all exits close', as
   page,
   context,
 }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'routeAlertCount', { value: 0, writable: true });
+    Object.defineProperty(navigator, 'vibrate', {
+      value: () => {
+        const state = window as unknown as { routeAlertCount: number };
+        state.routeAlertCount++;
+        return true;
+      },
+    });
+  });
   await context.grantPermissions(['geolocation']);
   await context.setGeolocation({ longitude: 121.1114, latitude: 14.3124, accuracy: 10 });
   const a = [121.1114, 14.3124],
@@ -67,6 +77,7 @@ test('navigation detours after a road closes and stops when all exits close', as
     .filter({ visible: true })
     .click();
   await page.getByRole('button', { name: 'Open navigation view' }).click();
+  await page.getByRole('button', { name: 'Enable sound and vibration' }).click();
   await expect(page.locator('.live-gps-marker')).toBeVisible();
   await expect(page.locator('.navigation-directions ol')).toContainText('Direct Street');
   await context.setGeolocation({ longitude: c[0], latitude: c[1], accuracy: 100 });
@@ -78,8 +89,16 @@ test('navigation detours after a road closes and stops when all exits close', as
   await context.setGeolocation({ longitude: a[0], latitude: a[1], accuracy: 10 });
   await expect(page.locator('.navigation-directions ol')).toContainText('Direct Street');
   closed = 1;
+  const alertCount = await page.evaluate(
+    () => (window as unknown as { routeAlertCount: number }).routeAlertCount,
+  );
   await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
   await expect(page.locator('.navigation-directions ol')).toContainText('Side Street');
+  await expect
+    .poll(() =>
+      page.evaluate(() => (window as unknown as { routeAlertCount: number }).routeAlertCount),
+    )
+    .toBeGreaterThan(alertCount);
   await expect(
     page.locator('.navigation-directions [role="status"]').filter({ hasText: 'Route updated' }),
   ).toBeVisible();

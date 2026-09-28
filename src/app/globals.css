@@ -900,6 +900,18 @@ h1 > span {
 .voice-directions {
   margin-bottom: 12px;
 }
+.offline-download {
+  display: grid;
+  gap: 8px;
+  margin-block: 12px;
+}
+.offline-download small,
+.navigation-directions > small {
+  display: block;
+  color: var(--muted);
+  line-height: 1.5;
+  margin-block: 6px;
+}
 .voice-directions button {
   display: flex;
   align-items: center;

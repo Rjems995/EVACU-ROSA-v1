@@ -6,6 +6,17 @@ const database = () =>
       db.createObjectStore('snapshots');
     },
   });
+export async function saveRouteDownload(html: string, savedAt: string) {
+  const db = await database();
+  await db.put('snapshots', { html, savedAt }, 'route-download');
+  db.close();
+}
+export async function readRouteDownload(): Promise<{ html: string; savedAt: string } | undefined> {
+  const db = await database();
+  const result = await db.get('snapshots', 'route-download');
+  db.close();
+  return result;
+}
 export async function cacheSnapshot(snapshot: Snapshot) {
   const db = await database();
   await db.put('snapshots', snapshot, 'latest');
