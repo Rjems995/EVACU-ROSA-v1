@@ -1,4 +1,5 @@
 import { fuzzyRisk } from './fuzzy';
+import { roadDirections } from './road-access';
 import { transportProfiles, type TransportMode } from './transport';
 import type { Hazard, Position, RankedShelter, Road, Route, Shelter, Snapshot } from './types';
 export function distance(a: Position, b: Position): number {
@@ -41,7 +42,7 @@ type Edge = {
   reverse: boolean;
   coordinates: Position[];
 };
-export function buildGraph(roads: Road[], hazards: Hazard[]) {
+export function buildGraph(roads: Road[], hazards: Hazard[], mode: TransportMode = 'walking') {
   const nodes = new Map<string, Position>(),
     edges = new Map<string, Edge[]>();
   const junctionUses = new Map<string, number>();
@@ -53,6 +54,8 @@ export function buildGraph(roads: Road[], hazards: Hazard[]) {
     ))
       junctionUses.set(id, (junctionUses.get(id) || 0) + 1);
   for (const road of roads) {
+    const directions = roadDirections(road, mode);
+    if (!directions.forward && !directions.reverse) continue;
     const coords = road.geometry.coordinates as Position[];
     const ids = road.node_ids?.length === coords.length ? road.node_ids : undefined;
     const cuts = [
@@ -84,8 +87,8 @@ export function buildGraph(roads: Road[], hazards: Hazard[]) {
           ...(edges.get(from) || []),
           { to, road, risk: risk.score, length, cost, reverse, coordinates },
         ]);
-      add(source, target, false);
-      if (!road.oneway) add(target, source, true);
+      if (directions.forward) add(source, target, false);
+      if (directions.reverse) add(target, source, true);
     }
   }
   return { nodes, edges };
@@ -95,10 +98,10 @@ export function findRoute(
   hazards: Hazard[],
   origin: Position,
   destination: Position,
-  graph = buildGraph(roads, hazards),
+  graph: ReturnType<typeof buildGraph> | undefined = undefined,
   mode: TransportMode = 'walking',
 ): Route | null {
-  const { nodes, edges } = graph;
+  const { nodes, edges } = graph ?? buildGraph(roads, hazards, mode);
   const nearest = (pos: Position) =>
     [...nodes.entries()].reduce<[string, Position] | undefined>(
       (best, node) => (!best || distance(pos, node[1]) < distance(pos, best[1]) ? node : best),
@@ -181,7 +184,7 @@ export function rankShelters(
   mode: TransportMode = 'walking',
 ): RankedShelter[] {
   const ranked: RankedShelter[] = [];
-  const graph = buildGraph(snapshot.roads, snapshot.hazards);
+  const graph = buildGraph(snapshot.roads, snapshot.hazards, mode);
   for (const shelter of snapshot.shelters) {
     if (
       ['Full', 'Closed', 'Not accepting'].includes(shelterStatus(shelter)) ||

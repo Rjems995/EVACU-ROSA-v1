@@ -37,7 +37,7 @@ import {
   X,
 } from 'lucide-react';
 import { DEMO_ORIGIN } from '@/lib/constants';
-import { rankShelters, segmentRisk, shelterStatus } from '@/lib/routing';
+import { distance, rankShelters, segmentRisk, shelterStatus } from '@/lib/routing';
 import { transportModes, transportProfiles, type TransportMode } from '@/lib/transport';
 import { useSnapshot } from '@/lib/use-snapshot';
 import AssistanceRequest from './assistance-request';
@@ -74,6 +74,21 @@ export default function PublicApp() {
   const [navigating, setNavigating] = useState(false);
   const [liveFix, setLiveFix] = useState<LiveFix | null>(null);
   const [arrived, setArrived] = useState('');
+  const [navigationOrigin, setNavigationOrigin] = useState<Position | null>(null);
+  const [rerouteMessage, setRerouteMessage] = useState('');
+  const lastNavigationRoute = useRef<{ shelter: string; roads: string[] } | null>(null);
+  useEffect(() => {
+    if (!navigating) {
+      setNavigationOrigin(null);
+      lastNavigationRoute.current = null;
+      return;
+    }
+    if (liveFix && liveFix.accuracy <= 30) {
+      setNavigationOrigin((previous) =>
+        !previous || distance(previous, liveFix.position) >= 30 ? liveFix.position : previous,
+      );
+    }
+  }, [navigating, liveFix]);
   const [overview, setOverview] = useState(0);
   useEffect(() => {
     if (picking) {
@@ -129,15 +144,47 @@ export default function PublicApp() {
   }, [snapshot, origin]);
   const ranked = useMemo(
     () =>
-      snapshot && origin && inCoverage ? rankShelters(snapshot, origin, accessible, transport) : [],
-    [snapshot, origin, accessible, inCoverage, transport],
+      snapshot && origin && inCoverage
+        ? rankShelters(
+            snapshot,
+            navigating && navigationOrigin ? navigationOrigin : origin,
+            accessible,
+            transport,
+          )
+        : [],
+    [snapshot, origin, accessible, inCoverage, transport, navigating, navigationOrigin],
   );
   const activeRoute = requested
     ? ranked.find((r) => r.shelter.id === selected) || ranked[0]
     : undefined;
   useEffect(() => {
-    if (!activeRoute) setNavigating(false);
-  }, [activeRoute]);
+    if (!navigating) return;
+    if (!activeRoute) {
+      setNavigating(false);
+      setRequested(false);
+      setRerouteMessage(
+        language === 'fil'
+          ? 'Walang angkop na ruta ngayon. Itinigil ang gabay; makipag-ugnayan sa CDRRMO.'
+          : 'No suitable route is available now. Guidance stopped; contact CDRRMO.',
+      );
+      return;
+    }
+    const previous = lastNavigationRoute.current;
+    const roads = activeRoute.route.roadIds;
+    if (
+      previous &&
+      (previous.shelter !== activeRoute.shelter.id ||
+        roads.some((id) => !previous.roads.includes(id)))
+    ) {
+      setRerouteMessage(
+        language === 'fil'
+          ? `Na-update ang ruta papunta sa ${activeRoute.shelter.name}. Suriin ang bagong gabay.`
+          : `Route updated to ${activeRoute.shelter.name}. Check the new directions.`,
+      );
+      setSelected(activeRoute.shelter.id);
+    }
+    lastNavigationRoute.current = { shelter: activeRoute.shelter.id, roads };
+  }, [activeRoute, navigating, language]);
   const shelterList = useMemo(() => {
     if (!snapshot) return [];
     const list = origin
@@ -309,6 +356,11 @@ export default function PublicApp() {
         </span>
       </div>
       <main id="main" className="app-main">
+        {rerouteMessage && !navigating && (
+          <p className="inline-warning" role="status">
+            {rerouteMessage}
+          </p>
+        )}
         {arrived && (
           <p role="status" className="inline-warning">
             {language === 'fil'
@@ -390,7 +442,12 @@ export default function PublicApp() {
                 <span className="step-dot">1</span> {t('YOUR STARTING POINT')}{' '}
               </div>
               <h2>{t('Where are you now?')} </h2>
-              <button className="location-field" aria-pressed={picking} aria-controls="evacuation-map-stage" onClick={() => setPicking(!picking)}>
+              <button
+                className="location-field"
+                aria-pressed={picking}
+                aria-controls="evacuation-map-stage"
+                onClick={() => setPicking(!picking)}
+              >
                 <MapPin size={20} />
                 <span>
                   {locating ? t('Finding your current location…') : t(locationName)}
@@ -440,7 +497,7 @@ export default function PublicApp() {
                 </div>
                 <small>
                   {t(
-                    'Changes estimated travel time. Vehicle access restrictions are not yet verified.',
+                    'Routes use available road-access rules for your transport. Follow posted restrictions.',
                   )}
                 </small>
               </fieldset>
@@ -816,6 +873,8 @@ export default function PublicApp() {
                   className="primary-button navigation-toggle"
                   onClick={() => {
                     setArrived('');
+                    setRerouteMessage('');
+                    setSelected(activeRoute.shelter.id);
                     setPicking(false);
                     setNavigating(true);
                     setOverview((n) => n + 1);
@@ -827,6 +886,11 @@ export default function PublicApp() {
                 </button>
                 {navigating && (
                   <div className="navigation-directions">
+                    {rerouteMessage && (
+                      <p role="status" className="inline-warning">
+                        {rerouteMessage}
+                      </p>
+                    )}
                     <LiveNavigation
                       route={activeRoute.route}
                       destination={activeRoute.shelter.geometry.coordinates as Position}
@@ -919,7 +983,7 @@ export default function PublicApp() {
                       ? `Nagsisimula ang ruta ${Math.round(activeRoute.route.snapDistance)} m mula sa napiling lokasyon, sa pinakamalapit na punto ng kalsada. Hindi pa nasuri ang paglapit mula sa lokasyon mo. Tantiyang oras lamang ito, batay sa ${transportProfiles[transport].metersPerMinute} m/min at iniulat na panganib.`
                       : `Starts ${Math.round(activeRoute.route.snapDistance)} m from your selected point at the nearest road-network node. The approach from your position is not assessed. ETA assumes ${transportProfiles[transport].metersPerMinute} m/min, adjusted for recorded risk.`}{' '}
                     {t(
-                      'Estimates exclude live traffic. All modes use the same road network and recorded one-way restrictions; vehicle access, parking and road width are not verified.',
+                      'Road access uses saved OSM tags. Turn restrictions, live traffic, parking and road width are not verified. Roads without access data are excluded for vehicles.',
                     )}{' '}
                     {t(
                       activeRoute.shelter.entrance_verified

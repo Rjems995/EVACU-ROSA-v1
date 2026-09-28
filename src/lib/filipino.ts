@@ -1,5 +1,9 @@
 // Interface copy only. Street names, staff notes and place names stay as recorded.
 export const filipino: Record<string, string> = {
+  'Routes use available road-access rules for your transport. Follow posted restrictions.':
+    'Ginagamit ang naitalang limitasyon sa kalsada para sa iyong sasakyan. Sundin ang mga karatula.',
+  'Road access uses saved OSM tags. Turn restrictions, live traffic, parking and road width are not verified. Roads without access data are excluded for vehicles.':
+    'Batay sa naka-save na OSM ang pagdaan. Hindi pa nasusuri ang limitasyon sa pagliko, trapiko, paradahan at lapad ng kalsada. Hindi isinasama para sa sasakyan ang mga kalsadang walang datos sa pagdaan.',
   'Mode of transportation': 'Paraan ng paglalakbay',
   Walking: 'Paglalakad',
   Cycling: 'Bisikleta',

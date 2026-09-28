@@ -1,8 +1,14 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 const state = vi.hoisted(() => ({ configured: false, data: {} as Record<string, unknown> }));
-vi.mock('@/lib/supabase', () => ({configured: () => state.configured, supabase: () => ({rpc: async () => ({data: state.data, error: null})})}));
+vi.mock('@/lib/supabase', () => ({
+  configured: () => state.configured,
+  supabase: () => ({ rpc: async () => ({ data: state.data, error: null }) }),
+}));
 import { getSnapshot } from '../src/lib/data';
-beforeEach(() => { state.configured = false; state.data = {}; });
+beforeEach(() => {
+  state.configured = false;
+  state.data = {};
+});
 it('serves only streets before connection setup', async () => {
   const data = await getSnapshot();
   expect(data.demo).toBe(false);
@@ -10,10 +16,17 @@ it('serves only streets before connection setup', async () => {
   expect(data.shelters).toEqual([]);
   expect(data.hazards).toEqual([]);
   expect(data.roads.length).toBeGreaterThan(0);
+  expect(data.roads.filter((r) => r.access).length).toBeGreaterThan(10000);
 });
 it('does not relabel connected demonstration incidents as real reports', async () => {
   state.configured = true;
-  state.data = {schemaVersion:2,demo:true,shelters:[{id:'fictional'}],hazards:[{id:'fictional'}]};
+  state.data = {
+    schemaVersion: 2,
+    roads: [],
+    demo: true,
+    shelters: [{ id: 'fictional' }],
+    hazards: [{ id: 'fictional' }],
+  };
   const data = await getSnapshot();
   expect(data.hazards).toEqual([]);
   expect(data.shelters).toEqual([]);
@@ -21,6 +34,6 @@ it('does not relabel connected demonstration incidents as real reports', async (
 });
 it('preserves operational reports from a connected database', async () => {
   state.configured = true;
-  state.data = {schemaVersion:2,demo:false,hazards:[{id:'actual-report'}]};
-  expect((await getSnapshot()).hazards).toEqual([{id:'actual-report'}]);
+  state.data = { schemaVersion: 2, roads: [], demo: false, hazards: [{ id: 'actual-report' }] };
+  expect((await getSnapshot()).hazards).toEqual([{ id: 'actual-report' }]);
 });

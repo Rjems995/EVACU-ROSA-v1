@@ -99,8 +99,8 @@ export default function LiveNavigation({
       {offRoute && (
         <p role="status">
           {fil
-            ? 'Maaaring wala ka sa nakaplanong ruta. Suriin ang mapa; hindi pa awtomatiko ang pagpalit ng ruta.'
-            : 'You may be off the planned route. Check the map; rerouting is not automatic.'}
+            ? 'Maaaring wala ka sa ruta. Awtomatikong susuriin ang ruta kapag sapat ang katumpakan ng GPS.'
+            : 'You may be off-route. The route is rechecked automatically when GPS accuracy is sufficient.'}
         </p>
       )}
       {!confirm ? (

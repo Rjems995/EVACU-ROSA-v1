@@ -54,12 +54,30 @@ describe('Mamdani risk scoring', () => {
 describe('risk-weighted A*', () => {
   it('changes travel estimates without bypassing closures or one-way restrictions', () => {
     const estimates = transportModes.map((mode) => {
-      const road = edge('a', 'b');
+      const road = edge('a', 'b', {
+        access: { tags: { highway: 'residential' }, reversed: false },
+      });
       expect(
         findRoute([{ ...road, blocked: true }], [], positions.a, positions.b, undefined, mode),
       ).toBeNull();
       expect(
-        findRoute([{ ...road, oneway: true }], [], positions.b, positions.a, undefined, mode),
+        findRoute(
+          [
+            {
+              ...road,
+              oneway: true,
+              access: {
+                tags: { highway: 'residential', oneway: 'yes', 'oneway:foot': 'yes' },
+                reversed: false,
+              },
+            },
+          ],
+          [],
+          positions.b,
+          positions.a,
+          undefined,
+          mode,
+        ),
       ).toBeNull();
       return findRoute([road], [], positions.a, positions.b, undefined, mode)!.minutes;
     });

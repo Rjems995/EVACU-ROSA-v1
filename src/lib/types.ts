@@ -30,6 +30,7 @@ export type Road = {
   geometry: LineString;
   osm_way_id?: string;
   node_ids?: string[];
+  access?: { tags: Record<string, string>; reversed: boolean };
 };
 export type Hazard = {
   id: string;
