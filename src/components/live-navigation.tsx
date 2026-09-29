@@ -3,7 +3,13 @@ import { useEffect, useState } from 'react';
 import type { Position, Route } from '@/lib/types';
 import { distance } from '@/lib/routing';
 
-export type LiveFix = { position: Position; accuracy: number };
+export type LiveFix = {
+  position: Position;
+  accuracy: number;
+  heading?: number | null;
+  speed?: number | null;
+  timestamp?: number;
+};
 export default function LiveNavigation({
   route,
   destination,
@@ -35,6 +41,9 @@ export default function LiveNavigation({
         const next = {
           position: [p.coords.longitude, p.coords.latitude] as Position,
           accuracy: p.coords.accuracy,
+          heading: p.coords.heading,
+          speed: p.coords.speed,
+          timestamp: p.timestamp,
         };
         setFix(next);
         onFix(next);

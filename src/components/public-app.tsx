@@ -386,7 +386,7 @@ export default function PublicApp() {
           <div>
             <p className="eyebrow">{t('YOUR WAY TO SAFETY')} </p>
             <h1 id="page-title">
-              {t('A safer route starts here')} <span>.</span>
+              <ShieldCheck size={22} aria-hidden="true" /> {t('Evacuation map')}
             </h1>
             <p>
               {t(
@@ -903,6 +903,13 @@ export default function PublicApp() {
                 </button>
                 {navigating && (
                   <div className="navigation-directions">
+                    <TurnGuidance
+                      key={activeRoute.shelter.id + transport}
+                      route={activeRoute.route}
+                      fix={liveFix}
+                      language={language}
+                      alert={rerouteMessage}
+                    />
                     <button
                       className="secondary-button"
                       aria-pressed={routeAlerts.enabled}
@@ -937,13 +944,6 @@ export default function PublicApp() {
                         setRequested(false);
                         setLiveFix(null);
                       }}
-                    />
-                    <TurnGuidance
-                      key={activeRoute.shelter.id + transport}
-                      route={activeRoute.route}
-                      fix={liveFix}
-                      language={language}
-                      alert={rerouteMessage}
                     />
                     <button className="secondary-button" onClick={() => setOverview((n) => n + 1)}>
                       {t('Show entire route')}{' '}
@@ -1099,6 +1099,13 @@ export default function PublicApp() {
         </footer>
       </main>
       <div className="mobile-action">
+        <button
+          className="mobile-emergency"
+          aria-label={t('Emergency help')}
+          onClick={() => setHelp(true)}
+        >
+          <Phone size={21} aria-hidden="true" />
+        </button>
         <button className="primary-button" onClick={findShelter} disabled={loading || !snapshot}>
           <Navigation size={20} />
           {t('Find Shelter Now')} <ArrowRight size={19} />

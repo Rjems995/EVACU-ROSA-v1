@@ -8,6 +8,35 @@ test('GPS announces an upcoming turn and route download works without external a
   await context.grantPermissions(['geolocation']);
   await context.setGeolocation({ longitude: 121.1114, latitude: 14.3124, accuracy: 10 });
   await page.addInitScript(() => {
+    const watch = navigator.geolocation.watchPosition.bind(navigator.geolocation);
+    Object.defineProperty(navigator.geolocation, 'watchPosition', {
+      value: (
+        success: PositionCallback,
+        error?: PositionErrorCallback,
+        options?: PositionOptions,
+      ) =>
+        watch(
+          (position) => {
+            Object.defineProperty(window, 'simulateWrongHeading', {
+              configurable: true,
+              value: (timestamp: number) =>
+                success({
+                  timestamp,
+                  coords: {
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude,
+                    accuracy: 10,
+                    heading: 180,
+                    speed: 3,
+                  },
+                } as GeolocationPosition),
+            });
+            success(position);
+          },
+          error,
+          options,
+        ),
+    });
     const calls: string[] = [];
     Object.defineProperty(window, 'voiceTest', { value: calls });
     Object.defineProperty(window, 'SpeechSynthesisUtterance', {
@@ -91,16 +120,28 @@ test('GPS announces an upcoming turn and route download works without external a
   expect(html).not.toMatch(/<script|<img|<link/);
   await page.getByRole('button', { name: 'Open navigation view' }).click();
   await page.getByRole('button', { name: 'Enable turn-by-turn voice' }).click();
-  await context.setGeolocation({ longitude: 121.1114, latitude: 14.3128, accuracy: 10 });
+  await context.setGeolocation({ longitude: 121.1114, latitude: 14.3129, accuracy: 10 });
   const spoken = () =>
     page.evaluate(() => (window as unknown as { voiceTest: string[] }).voiceTest);
   await expect
     .poll(spoken)
     .toEqual(expect.arrayContaining([expect.stringContaining('Turn right onto East Street')]));
   const before = (await spoken()).length;
-  await context.setGeolocation({ longitude: 121.1114, latitude: 14.31281, accuracy: 10 });
+  await context.setGeolocation({ longitude: 121.1114, latitude: 14.31291, accuracy: 10 });
   await expect(page.locator('.live-navigation')).toContainText('Live GPS');
   expect((await spoken()).length).toBe(before);
+  await page.evaluate(() =>
+    (window as unknown as { simulateWrongHeading: (time: number) => void }).simulateWrongHeading(
+      Date.now() + 1000,
+    ),
+  );
+  await expect(page.locator('.next-turn-warning')).toHaveCount(0);
+  await page.evaluate(() =>
+    (window as unknown as { simulateWrongHeading: (time: number) => void }).simulateWrongHeading(
+      Date.now() + 2000,
+    ),
+  );
+  await expect(page.locator('.next-turn-warning')).toContainText('Check your direction');
   await page.getByRole('button', { name: 'Exit navigation', exact: true }).click();
   await context.setOffline(true);
   const offline = await context.newPage();
