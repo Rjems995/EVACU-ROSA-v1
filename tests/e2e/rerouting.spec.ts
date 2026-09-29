@@ -1,9 +1,15 @@
 import { test, expect } from './fixtures';
 
+// WebKit can bypass page.route after the production worker claims the page.
+// Keep this changing-snapshot fixture isolated; public.spec.ts tests the real offline worker.
+test.use({ serviceWorkers: 'block' });
+
 test('navigation detours after a road closes and stops when all exits close', async ({
   page,
   context,
 }) => {
+  const pageErrors: string[] = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
   await page.addInitScript(() => {
     Object.defineProperty(window, 'routeAlertCount', { value: 0, writable: true });
     Object.defineProperty(navigator, 'vibrate', {
@@ -108,4 +114,5 @@ test('navigation detours after a road closes and stops when all exits close', as
   await expect(
     page.getByRole('status').filter({ hasText: 'No suitable route is available now' }),
   ).toBeVisible();
+  expect(pageErrors).toEqual([]);
 });
