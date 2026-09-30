@@ -11,6 +11,32 @@ test('navigation detours after a road closes and stops when all exits close', as
   const pageErrors: string[] = [];
   page.on('pageerror', (error) => pageErrors.push(error.message));
   await page.addInitScript(() => {
+    const state = window as unknown as {
+      holdSnapshotCache: boolean;
+      snapshotWritePending: boolean;
+    };
+    state.holdSnapshotCache = false;
+    state.snapshotWritePending = false;
+    const transaction = IDBDatabase.prototype.transaction;
+    IDBDatabase.prototype.transaction = function (...args: Parameters<typeof transaction>) {
+      const tx = transaction.apply(this, args);
+      if (
+        args[1] === 'readwrite' &&
+        tx.objectStoreNames.contains('snapshots') &&
+        state.holdSnapshotCache
+      ) {
+        state.snapshotWritePending = true;
+        const keepAlive = () => {
+          if (!state.holdSnapshotCache) {
+            state.snapshotWritePending = false;
+            return;
+          }
+          tx.objectStore('snapshots').get('latest').onsuccess = keepAlive;
+        };
+        keepAlive();
+      }
+      return tx;
+    };
     Object.defineProperty(window, 'routeAlertCount', { value: 0, writable: true });
     Object.defineProperty(navigator, 'vibrate', {
       value: () => {
@@ -95,6 +121,9 @@ test('navigation detours after a road closes and stops when all exits close', as
   await context.setGeolocation({ longitude: a[0], latitude: a[1], accuracy: 10 });
   await expect(page.locator('.navigation-directions ol')).toContainText('Direct Street');
   closed = 1;
+  await page.evaluate(() => {
+    (window as unknown as { holdSnapshotCache: boolean }).holdSnapshotCache = true;
+  });
   const alertCount = await page.evaluate(
     () => (window as unknown as { routeAlertCount: number }).routeAlertCount,
   );
@@ -109,7 +138,17 @@ test('navigation detours after a road closes and stops when all exits close', as
     page.locator('.navigation-directions [role="status"]').filter({ hasText: 'Route updated' }),
   ).toBeVisible();
   closed = 2;
-  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => (window as unknown as { snapshotWritePending: boolean }).snapshotWritePending,
+      ),
+    )
+    .toBe(true);
+  await page.evaluate(() => {
+    document.dispatchEvent(new Event('visibilitychange'));
+    (window as unknown as { holdSnapshotCache: boolean }).holdSnapshotCache = false;
+  });
   await expect(page.locator('.navigation-view')).toHaveCount(0);
   await expect(
     page.getByRole('status').filter({ hasText: 'No suitable route is available now' }),

@@ -10,39 +10,48 @@ export function useSnapshot() {
     [error, setError] = useState('');
   const [storageError, setStorageError] = useState(false);
   const running = useRef(false);
+  const refreshPending = useRef(false);
   const sync = useCallback(async () => {
-    if (running.current) return;
-    running.current = true;
-    setOffline(!navigator.onLine);
-    try {
-      const response = await fetch('/api/snapshot', {
-        cache: 'no-store',
-        signal: AbortSignal.timeout(12000),
-      });
-      if (!response.ok) throw new Error('The latest data could not be reached.');
-      const fresh: Snapshot = await response.json();
-      setSnapshot(fresh);
-      setCached(false);
-      setError('');
-      try {
-        await cacheSnapshot(fresh);
-        setStorageError(false);
-      } catch {
-        setStorageError(true);
-      }
-    } catch {
-      setCached(true);
-      setError('Live updates unavailable. Showing saved data when available.');
-      try {
-        const saved = await readSnapshot();
-        if (saved) setSnapshot(saved);
-      } catch {
-        setStorageError(true);
-      }
-    } finally {
-      setLoading(false);
-      running.current = false;
+    if (running.current) {
+      refreshPending.current = true;
+      return;
     }
+    running.current = true;
+    do {
+      refreshPending.current = false;
+      setOffline(!navigator.onLine);
+      try {
+        const response = await fetch('/api/snapshot', {
+          cache: 'no-store',
+          signal: AbortSignal.timeout(12000),
+        });
+        if (!response.ok) throw new Error('The latest data could not be reached.');
+        const fresh: Snapshot = await response.json();
+        setSnapshot(fresh);
+        setCached(false);
+        setError('');
+        try {
+          await cacheSnapshot(fresh);
+          setStorageError(false);
+        } catch {
+          setStorageError(true);
+        }
+      } catch {
+        setCached(true);
+        setError('Live updates unavailable. Showing saved data when available.');
+        try {
+          const saved = await readSnapshot();
+          if (saved) setSnapshot(saved);
+        } catch {
+          setStorageError(true);
+        }
+      } finally {
+        setLoading(false);
+      }
+      // A reconnect/manual refresh can arrive after rendering but before IndexedDB finishes.
+      // Coalesce those requests into a follow-up fetch instead of losing the latest update.
+    } while (refreshPending.current);
+    running.current = false;
   }, []);
   useEffect(() => {
     void sync();
